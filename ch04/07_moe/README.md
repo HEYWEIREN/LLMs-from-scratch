@@ -1,13 +1,13 @@
-# Mixture of Experts (MoE)
+# Mixture of Experts（MoE）
 
-This bonus material illustrates the memory savings (per token) when using Mixture-of-Experts (MoE) layers instead of regular feed-forward (FFN) layers.
+这份补充材料展示了使用 Mixture-of-Experts（MoE）层替代常规 feed-forward（FFN）层时，每个 token 可以节省多少内存。
 
 
 
 &nbsp;
-## Introduction
+## 引言
 
-The core idea in MoE is to replace each feed-forward module in a transformer block with multiple expert layers, where each of these expert layers is also a feed-forward module. This means we replace a single feed-forward block with multiple feed-forward blocks, as illustrated in the figure below.
+MoE 的核心思想是：把 transformer block 中的每个 feed-forward 模块替换成多个专家层，而每个专家层本身也是一个 feed-forward 模块。也就是说，我们用多个 feed-forward block 替代单个 feed-forward block，如下图所示。
 
 
 
@@ -15,37 +15,37 @@ The core idea in MoE is to replace each feed-forward module in a transformer blo
 
 <img src="https://sebastianraschka.com/images/LLMs-from-scratch-images/bonus/moe-memory/1.webp" alt="SWA" width="800px" />
 
-The feed-forward block inside a transformer block (shown as the dark gray block in the figure above) typically contains a large number of the model's total parameters. (Note that the transformer block, and thereby the feed-forward block, is repeated many times in an LLM; in the case of DeepSeek-V3, 61 times.)
+Transformer block 内部的 feed-forward block（上图中的深灰色模块）通常包含模型总参数中的很大一部分。（注意，transformer block 以及其中的 feed-forward block 会在 LLM 中重复很多次；以 DeepSeek-V3 为例，重复了 61 次。）
 
-So, replacing *a single* feed-forward block with *multiple* feed-forward blocks (as done in a MoE setup) substantially increases the model's total parameter count. However, the key trick is that we don't use ("activate") all experts for every token. Instead, a router selects only a small subset of experts per token.
+因此，把*一个* feed-forward block 替换成*多个* feed-forward block（MoE 设置中的做法）会大幅增加模型总参数量。不过关键技巧是：我们不会为每个 token 使用（“激活”）所有专家。相反，router 会为每个 token 只选择一小部分专家。
 
-Because only a few experts are active at a time, MoE modules are often referred to as *sparse*, in contrast to *dense* modules that always use the full parameter set. However, the large total number of parameters via an MoE increases the capacity of the LLM, which means it can take up more knowledge during training. The sparsity keeps inference efficient, though, as we don't use all the parameters at the same time.
+由于每次只有少量专家处于激活状态，MoE 模块通常被称为*稀疏*模块，与总是使用完整参数集合的*稠密*模块相对。不过，MoE 带来的大量总参数会提升 LLM 容量，也就是训练时可以吸收更多知识；而稀疏性又能保持推理效率，因为不会同时使用所有参数。
 
-For example, DeepSeek-V3 has 256 experts per MoE module and a total of 671 billion parameters. Yet during inference, only 9 experts are active at a time (1 shared expert plus 8 selected by the router). This means just 37 billion parameters are used for each token inference step as opposed to all 671 billion.
+例如，DeepSeek-V3 的每个 MoE 模块有 256 个专家，总参数量为 6710 亿。但推理时一次只激活 9 个专家（1 个共享专家加上 router 选出的 8 个）。这意味着每个 token 推理步骤只使用 370 亿参数，而不是全部 6710 亿参数。
 
-One notable feature of DeepSeek-V3's MoE design is the use of a shared expert. This is an expert that is always active for every token. This idea is not new and was already introduced in the [2022 DeepSpeed-MoE](https://arxiv.org/abs/2201.05596) and the [2024 DeepSeek MoE](https://arxiv.org/abs/2401.06066) papers.
+DeepSeek-V3 的 MoE 设计中一个值得注意的特征是使用共享专家。共享专家会对每个 token 始终激活。这个想法并不新，早在 [2022 DeepSpeed-MoE](https://arxiv.org/abs/2201.05596) 和 [2024 DeepSeek MoE](https://arxiv.org/abs/2401.06066) 论文中就已经提出。
 
 &nbsp;
 
 <img src="https://sebastianraschka.com/images/LLMs-from-scratch-images/bonus/moe-memory/3.webp?1" alt="MoE shared expert" width="500px" />
 
-(An annotated figure from the [DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models](https://arxiv.org/abs/2401.06066) paper.)
+（来自 [DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models](https://arxiv.org/abs/2401.06066) 论文的一张带标注图。）
 
 &nbsp;
 
-The benefit of having a shared expert was first noted in the [DeepSpeed-MoE paper](https://arxiv.org/abs/2201.05596), where they found that it boosts overall modeling performance compared to no shared experts. This is likely because common or repeated patterns don't have to be learned by multiple individual experts, which leaves them with more room for learning more specialized patterns.
+拥有共享专家的好处最早在 [DeepSpeed-MoE 论文](https://arxiv.org/abs/2201.05596)中被指出：相比没有共享专家，它能提升整体建模性能。这可能是因为常见或重复模式不需要被多个单独专家重复学习，从而让这些专家有更多空间学习更专门化的模式。
 
 &nbsp;
-## Mixture of Experts (MoE) Memory Savings
+## Mixture of Experts（MoE）的内存节省
 
-The memory savings in MoE models primarily come from reduced activation storage and compute. In a regular (dense) feed-forward layer (FFN), every token activates the full intermediate dimension. 
+MoE 模型中的内存节省主要来自激活存储和计算量的减少。在常规（稠密）feed-forward 层（FFN）中，每个 token 都会激活完整的中间维度。
 
-In contrast, an MoE layer routes each token through only a small subset of experts (for example, `top_k` out of `num_experts`) per token.
+相比之下，MoE 层会把每个 token 只路由到一小部分专家中，例如每个 token 使用 `num_experts` 中的 `top_k` 个专家。
 
-When using an MoE layer, only `top_k` experts are active per token, so the effective memory (and compute) scales by roughly a factor of `top_k / num_experts` relative to a dense FFN of the same total capacity.
+使用 MoE 层时，每个 token 只有 `top_k` 个专家激活，因此相对于具有相同总容量的稠密 FFN，有效内存（和计算）大致按 `top_k / num_experts` 的比例缩放。
 
 
-You can use the [memory_estimator_moe.py](memory_estimator_moe.py) script in this folder to apply this for different model configs to see how much memory you can save by using MoE over FFN (note that this is for a single transformer block, to get the total savings, multiply by the number of transformer blocks in your model):
+你可以使用本文件夹中的 [memory_estimator_moe.py](memory_estimator_moe.py) 脚本，把它应用到不同模型配置上，查看使用 MoE 替代 FFN 能节省多少内存（注意，这是针对单个 transformer block 的结果；如果要得到总节省量，需要乘以模型中的 transformer block 数）：
 
 ```bash
 uv run memory_estimator_moe.py --emb_dim 7168 --hidden_dim 14336 --ffn_type swiglu \
@@ -68,11 +68,11 @@ MoE ACTIVE/Token       : 77,127,680 (0.15 GB)
 moe_hidden_size        : 1792
 ```
 
-So, based on the results above, we can see that if we have a FFN with an input/output dimension (`emb_dim`) of 7,168 and an intermediate size (`hidden_dim`) of 14,336, we have ~308M parameters in this layer, and all these parameters are active in the forward pass.
+基于上面的结果可以看到，如果 FFN 的输入/输出维度（`emb_dim`）为 7,168，中间大小（`hidden_dim`）为 14,336，那么这一层约有 3.08 亿参数，并且所有这些参数都会在前向传播中激活。
 
-Now, if we use an MoE layer with roughly the same number of total parameters (~308M), with 8 experts where 2 experts are active, only ~77M parameters are active in each forward pass. 
+现在，如果使用总参数量大致相同（约 3.08 亿）的 MoE 层，包含 8 个专家且每次激活 2 个专家，那么每次前向传播中只有约 7,700 万参数被激活。
 
-Moreover, at a constant number of experts, the more experts we have, the lower the number of active parameters becomes, and the greater the "savings":
+此外，在专家总数固定时，专家越多，激活参数数量越低，“节省”越明显：
 
 &nbsp;
 
@@ -84,7 +84,7 @@ Moreover, at a constant number of experts, the more experts we have, the lower t
 
 &nbsp;
 
-You can reproduce this plot via:
+可以通过下面的命令复现该图：
 
 ```bash
 uv run plot_memory_estimates_moe.py \
@@ -96,15 +96,15 @@ uv run plot_memory_estimates_moe.py \
 
 
 &nbsp;
-## MoE Code Examples
+## MoE 代码示例
 
-The [gpt_with_kv_ffn.py](gpt_with_kv_ffn.py) and [gpt_with_kv_moe.py](gpt_with_kv_moe.py) scripts in this folder provide hands-on examples for comparing the regular FFN and MoE memory usage in the context of a GPT model implementation. Note that both scripts use [SwiGLU](https://arxiv.org/abs/2002.05202) feed-forward modules as shown in the first figure of this page (GPT-2 traditionally uses GELU).
+本文件夹中的 [gpt_with_kv_ffn.py](gpt_with_kv_ffn.py) 和 [gpt_with_kv_moe.py](gpt_with_kv_moe.py) 脚本提供了动手示例，用于在 GPT 模型实现中比较常规 FFN 和 MoE 的内存占用。注意，这两个脚本都使用了第一张图所示的 [SwiGLU](https://arxiv.org/abs/2002.05202) feed-forward 模块（传统 GPT-2 使用 GELU）。
 
-**Note: The model is not trained and thus generates nonsensical text. You can find a trained MoE in the bonus materials at [../../ch05/11_qwen3/standalone-qwen3-moe-plus-kvcache.ipynb](../../ch05/11_qwen3/standalone-qwen3-moe-plus-kvcache.ipynb).**
+**注意：该模型没有训练，因此会生成无意义文本。你可以在补充材料 [../../ch05/11_qwen3/standalone-qwen3-moe-plus-kvcache.ipynb](../../ch05/11_qwen3/standalone-qwen3-moe-plus-kvcache.ipynb) 中找到一个训练好的 MoE。**
 
 
 
-First, let's run the model with a regular FFN:
+首先，运行带常规 FFN 的模型：
 
 
 ```bash
@@ -124,7 +124,7 @@ Time: 25.13 sec
 Max memory allocated: 11.47 GB
 ```
 
-For a fair comparison with an MoE, we have to shrink the expert size. E.g., of we use 32 experts, we have to set `--hidden_dim 32768/32`:
+为了和 MoE 公平比较，必须缩小专家大小。例如，如果使用 32 个专家，就需要设置 `--hidden_dim 32768/32`：
 
 
 ```bash
@@ -146,15 +146,12 @@ Time: 35.11 sec
 Max memory allocated: 11.48 GB
 ```
 
-We can see that the dense feed-forward layer processes a token in about 0.76 ms and uses roughly 0.19 MB of activations (peaking near 0.75 MB),
+可以看到，稠密 feed-forward 层处理一个 token 约需 0.76 ms，并使用约 0.19 MB 激活内存（峰值接近 0.75 MB）。
 
-The sparse MoE layer keeps only about 0.04 MB of memory (peaking at 0.11). However, this comes at the cost of roughly twice the compute time. (There is an added routing overhead, and my implementation may also not be the most efficient one.)
+稀疏 MoE 层只保留约 0.04 MB 内存（峰值 0.11 MB）。不过代价是计算时间大约翻倍。（这里有额外路由开销，而且我的实现也不一定最高效。）
 
-Overall generation still peaks around 11.5 GB of GPU memory in both cases, since both versions load the same number of weight parameters and have the same KV cache size, which dominate here.
+整体生成过程在两种情况下的 GPU 内存峰值仍然约为 11.5 GB，因为两个版本加载了相同数量的权重参数，并且 KV cache 大小相同，这些因素在这里占主导。
 
-Either way, we can see the trade-off here where MoE reduces the FFN memory by about 4-5× while roughly doubling the feed-forward compute time.
+无论如何，这展示了 MoE 的权衡：它把 FFN 内存降低约 4-5 倍，但大约让 feed-forward 计算时间翻倍。
 
-Note that if we processed more tokens at one, e.g., with a batch size larger than 1 (here we don't have batches due to code simplicity), the savings would be more pronounced.
-
-
-
+注意，如果一次处理更多 token，例如 batch size 大于 1（这里为了代码简单没有使用 batch），节省会更明显。

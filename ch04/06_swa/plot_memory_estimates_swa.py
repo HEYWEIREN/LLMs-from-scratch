@@ -1,11 +1,11 @@
-# Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
-# Source for "Build a Large Language Model From Scratch"
+# 版权所有 (c) Sebastian Raschka，遵循 Apache License 2.0（见 LICENSE.txt）。
+# 《Build a Large Language Model From Scratch》的源代码
 #   - https://www.manning.com/books/build-a-large-language-model-from-scratch
-# Code: https://github.com/rasbt/LLMs-from-scratch
+# 代码：https://github.com/rasbt/LLMs-from-scratch
 #
-# Sliding Window Attention (SWA) memory usage vs context length plot.
+# Sliding Window Attention（SWA）内存占用随上下文长度变化的图。
 #
-# This script mirrors the style and structure of plot_memory_estimates_mla.py.
+# 本脚本沿用 plot_memory_estimates_mla.py 的风格和结构。
 
 import argparse
 from pathlib import Path
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-# Bytes per element
+# 每个元素的字节数
 DTYPE_BYTES = {
     "fp32": 4,
     "bf16": 2,
@@ -29,7 +29,7 @@ def convert_bytes_to_gb(n_bytes):
 
 
 def parse_ratio(ratio_str):
-    # "--swa_ratio a:b" means a SWA layers for every b full layers within a block
+    # "--swa_ratio a:b" 表示每个块中每 a 个 SWA 层对应 b 个完整注意力层
     try:
         a_str, b_str = ratio_str.split(":")
         a, b = int(a_str), int(b_str)
@@ -40,7 +40,7 @@ def parse_ratio(ratio_str):
 
 
 def calc_kv_bytes_total_mha(batch, context_length, emb_dim, n_layers, bytes_per_elem):
-    # For MHA, n_kv_heads = n_heads, which cancels out:
+    # 对 MHA，n_kv_heads = n_heads，会在公式中抵消：
     # total = B * L * E * 2 (K,V) * bytes * n_layers
     return batch * context_length * emb_dim * 2 * bytes_per_elem * n_layers
 
@@ -48,8 +48,8 @@ def calc_kv_bytes_total_mha(batch, context_length, emb_dim, n_layers, bytes_per_
 def calc_kv_bytes_total_gqa(
     batch, context_length, emb_dim, n_layers, bytes_per_elem, n_kv_groups
 ):
-    # For GQA, n_kv_heads = n_heads / n_kv_groups
-    # => scale the MHA total by 1 / n_kv_groups
+    # 对 GQA，n_kv_heads = n_heads / n_kv_groups
+    # => 将 MHA 总量按 1 / n_kv_groups 缩放
     base = calc_kv_bytes_total_mha(batch, context_length, emb_dim, n_layers, bytes_per_elem)
     return base / n_kv_groups
 
@@ -57,7 +57,7 @@ def calc_kv_bytes_total_gqa(
 def calc_kv_bytes_total_mha_swa(
     batch, context_length, emb_dim, n_layers, bytes_per_elem, window, swa_ratio
 ):
-    # Split layers into SWA vs Full
+    # 将层划分为 SWA 与完整注意力
     a, b = parse_ratio(swa_ratio)
     total_blocks = a + b
     n_swa_layers = int(round(n_layers * (a / total_blocks)))

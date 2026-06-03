@@ -36,13 +36,13 @@ from functools import lru_cache
 @lru_cache()
 def bytes_to_unicode():
     """
-    Returns list of utf-8 byte and a corresponding list of unicode strings.
-    The reversible bpe codes work on unicode strings.
-    This means you need a large # of unicode characters in your vocab if you want to avoid UNKs.
-    When you're at something like a 10B token dataset you end up needing around 5K for decent coverage.
-    This is a significant percentage of your normal, say, 32K bpe vocab.
-    To avoid that, we want lookup tables between utf-8 bytes and unicode strings.
-    And avoids mapping to whitespace/control characters the bpe code barfs on.
+    返回 UTF-8 字节到 Unicode 字符串的映射表。
+    可逆的 BPE 编码是在 Unicode 字符串上工作的。
+    如果想避免使用 UNK，就需要在词表中放入大量 Unicode 字符。
+    当数据集规模达到约 100 亿 token 时，通常需要大约 5K 个字符才能获得不错的覆盖率。
+    相对于常见的 32K BPE 词表来说，这已经占了相当大的比例。
+    为避免这种开销，这里构建 UTF-8 字节和 Unicode 字符串之间的查找表。
+    同时避免映射到空白字符或控制字符，因为这些字符会让 BPE 代码处理出问题。
     """
     bs = list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
     cs = bs[:]
@@ -58,8 +58,8 @@ def bytes_to_unicode():
 
 def get_pairs(word):
     """
-    Return set of symbol pairs in a word.
-    Word is represented as tuple of symbols (symbols being variable-length strings).
+    返回一个单词中相邻符号对的集合。
+    这里的单词用符号元组表示，其中符号可以是长度可变的字符串。
     """
     pairs = set()
     prev_char = word[0]
@@ -73,13 +73,13 @@ class Encoder:
     def __init__(self, encoder, bpe_merges, errors="replace"):
         self.encoder = encoder
         self.decoder = {v: k for k, v in self.encoder.items()}
-        self.errors = errors  # how to handle errors in decoding
+        self.errors = errors  # 解码时如何处理错误
         self.byte_encoder = bytes_to_unicode()
         self.byte_decoder = {v: k for k, v in self.byte_encoder.items()}
         self.bpe_ranks = dict(zip(bpe_merges, range(len(bpe_merges))))
         self.cache = {}
 
-        # Should have added re.IGNORECASE so BPE merges can happen for capitalized versions of contractions
+        # 这里本应加入 re.IGNORECASE，这样缩写的大写形式也能参与 BPE 合并
         self.pat = re.compile(r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
 
     def bpe(self, token):
@@ -146,11 +146,11 @@ def get_encoder(model_name, models_dir):
 
 
 def download_vocab():
-    # Modified code from
+    # 基于原代码修改
     subdir = "gpt2_model"
     if not os.path.exists(subdir):
         os.makedirs(subdir)
-    subdir = subdir.replace("\\", "/")  # needed for Windows
+    subdir = subdir.replace("\\", "/")  # Windows 下需要这样处理
 
     for filename in ["encoder.json", "vocab.bpe"]:
         r = requests.get("https://openaipublic.blob.core.windows.net/gpt-2/models/117M/" + filename, stream=True)
@@ -159,7 +159,7 @@ def download_vocab():
             file_size = int(r.headers["content-length"])
             chunk_size = 1000
             with tqdm(ncols=100, desc="Fetching " + filename, total=file_size, unit_scale=True) as pbar:
-                # 1k for chunk_size, since Ethernet packet size is around 1500 bytes
+                # chunk_size 设为 1k，因为以太网数据包大小约为 1500 字节
                 for chunk in r.iter_content(chunk_size=chunk_size):
                     f.write(chunk)
                     pbar.update(chunk_size)

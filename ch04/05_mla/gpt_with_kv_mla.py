@@ -1,11 +1,11 @@
-# Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
-# Source for "Build a Large Language Model From Scratch"
+# 版权所有 (c) Sebastian Raschka，遵循 Apache License 2.0（见 LICENSE.txt）。
+# 《Build a Large Language Model From Scratch》的源代码
 #   - https://www.manning.com/books/build-a-large-language-model-from-scratch
-# Code: https://github.com/rasbt/LLMs-from-scratch
+# 代码：https://github.com/rasbt/LLMs-from-scratch
 
-# This file collects all the relevant code that we covered thus far
-# throughout Chapters 3-4, adapted to use Multi-Head Latent Attention (MLA).
-# This file can be run as a standalone script.
+# 本文件汇总目前为止讲过的相关代码
+# 覆盖第 3-4 章内容，并改为使用 Multi-Head Latent Attention（MLA）。
+# 本文件可以作为独立脚本运行。
 
 import argparse
 import time
@@ -15,9 +15,9 @@ import torch.nn as nn
 
 
 #####################################
-# Multi-Head Latent Attention
+# 多头潜在注意力（MLA）
 #####################################
-# The MLA code below is inspired by
+# 下面的 MLA 代码参考自
 # https://huggingface.co/bird-of-paradise/deepseek-mla
 
 
@@ -32,11 +32,11 @@ class MultiHeadLatentAttention(nn.Module):
         self.head_dim = d_out // num_heads
         self.latent_dim = latent_dim if latent_dim is not None else max(16, d_out // 8)
 
-        # Projections
-        self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)              # per-head Q
-        self.W_DKV = nn.Linear(d_in, self.latent_dim, bias=qkv_bias)    # down to latent C
-        self.W_UK = nn.Linear(self.latent_dim, d_out, bias=qkv_bias)   # latent -> per-head K
-        self.W_UV = nn.Linear(self.latent_dim, d_out, bias=qkv_bias)   # latent -> per-head V
+        # 投影
+        self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)              # 每个 head 的 Q
+        self.W_DKV = nn.Linear(d_in, self.latent_dim, bias=qkv_bias)    # 下投影到 latent C
+        self.W_UK = nn.Linear(self.latent_dim, d_out, bias=qkv_bias)   # latent -> 每个 head 的 K
+        self.W_UV = nn.Linear(self.latent_dim, d_out, bias=qkv_bias)   # latent -> 每个 head 的 V
 
         self.out_proj = nn.Linear(d_out, d_out)
         self.dropout = nn.Dropout(dropout)
@@ -62,11 +62,11 @@ class MultiHeadLatentAttention(nn.Module):
         num_heads = self.num_heads
         head_dim = self.head_dim
 
-        # 1) Project to queries (per-token, per-head) and new latent chunk
+        # 1) 投影出 query（每 token、每 head）和新的 latent 块
         queries_all = self.W_query(x)  # (b, T, d_out)
         latent_new = self.W_DKV(x)  # (b, T, latent_dim)
 
-        # 2) Update latent cache and choose latent sequence to up-project
+        # 2) 更新 latent cache，并选择要上投影的 latent 序列
         if use_cache:
             if self.cache_c_kv is None:
                 latent_total = latent_new
@@ -76,16 +76,16 @@ class MultiHeadLatentAttention(nn.Module):
         else:
             latent_total = latent_new
 
-        # 3) Up-project latent to per-head keys/values (then split into heads)
+        # 3) 将 latent 上投影为每个 head 的 key/value（然后拆分成 head）
         keys_all = self.W_UK(latent_total)   # (b, T_k_total, d_out)
         values_all = self.W_UV(latent_total)   # (b, T_k_total, d_out)
 
-        # 4) Reshape to heads
+        # 4) 重塑为多头形状
         queries = self._reshape_to_heads(queries_all, num_heads, head_dim)
         keys = self._reshape_to_heads(keys_all, num_heads, head_dim)
         values = self._reshape_to_heads(values_all, num_heads, head_dim)
 
-        # 5) Scaled dot-product attention with causal mask
+        # 5) 使用因果 mask 的 scaled dot-product attention
         attn_scores = torch.matmul(queries, keys.transpose(-2, -1))
 
         num_tokens_Q = queries.shape[-2]
@@ -105,18 +105,18 @@ class MultiHeadLatentAttention(nn.Module):
         k_positions = torch.arange(num_tokens_K, device=device, dtype=torch.long)
         mask_bool = q_positions.unsqueeze(-1) < k_positions.unsqueeze(0)
 
-        # Use the mask to fill attention scores
+        # 使用 mask 填充注意力分数
         attn_scores.masked_fill_(mask_bool, -torch.inf)
 
         attn_weights = torch.softmax(attn_scores / keys.shape[-1]**0.5, dim=-1)
         attn_weights = self.dropout(attn_weights)
 
-        # Shape: (b, num_tokens, num_heads, head_dim)
+        # 形状：(b, num_tokens, num_heads, head_dim)
         context_vec = (attn_weights @ values).transpose(1, 2)
 
-        # Combine heads, where self.d_out = self.num_heads * self.head_dim
+        # 合并各个 head，其中 self.d_out = self.num_heads * self.head_dim
         context_vec = context_vec.contiguous().view(b, num_tokens, self.d_out)
-        context_vec = self.out_proj(context_vec)  # optional projection
+        context_vec = self.out_proj(context_vec)  # 可选投影
 
         return context_vec
 
@@ -176,25 +176,25 @@ class TransformerBlock(nn.Module):
         self.drop_shortcut = nn.Dropout(cfg["drop_rate"])
 
     def forward(self, x, use_cache=False):
-        # Shortcut connection for attention block
+        # attention block 的快捷连接
         shortcut = x
         x = self.norm1(x)
 
-        # x = self.att(x)   # Shape [batch_size, num_tokens, emb_size]
+        # x = self.att(x)   # 形状 [batch_size, num_tokens, emb_size]
         ####################################################
-        #  KV cache-related
+        #  KV cache 相关
         x = self.att(x, use_cache=use_cache)
         ####################################################
 
         x = self.drop_shortcut(x)
-        x = x + shortcut  # Add the original input back
+        x = x + shortcut  # 把原始输入加回来
 
-        # Shortcut connection for feed-forward block
+        # feed-forward block 的快捷连接
         shortcut = x
         x = self.norm2(x)
         x = self.ff(x)
         x = self.drop_shortcut(x)
-        x = x + shortcut  # Add the original input back
+        x = x + shortcut  # 把原始输入加回来
 
         return x
 
@@ -209,7 +209,7 @@ class GPTModel(nn.Module):
         # self.trf_blocks = nn.Sequential(
         #    *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])])
         ####################################################
-        #  KV cache-related
+        #  KV cache 相关
         self.trf_blocks = nn.ModuleList(
             [TransformerBlock(cfg) for _ in range(cfg["n_layers"])])
 
@@ -226,7 +226,7 @@ class GPTModel(nn.Module):
         # pos_embeds = self.pos_emb(torch.arange(seq_len, device=in_idx.device))
 
         ####################################################
-        #  KV cache-related
+        #  KV cache 相关
         if use_cache:
             pos_ids = torch.arange(self.current_pos, self.current_pos + seq_len, device=in_idx.device, dtype=torch.long)
             self.current_pos += seq_len
@@ -235,12 +235,12 @@ class GPTModel(nn.Module):
         pos_embeds = self.pos_emb(pos_ids).unsqueeze(0)
         ####################################################
 
-        x = tok_embeds + pos_embeds  # Shape [batch_size, num_tokens, emb_size]
+        x = tok_embeds + pos_embeds  # 形状 [batch_size, num_tokens, emb_size]
         x = self.drop_emb(x)
 
         # x = self.trf_blocks(x)
         ####################################################
-        #  KV cache-related
+        #  KV cache 相关
         for blk in self.trf_blocks:
             x = blk(x, use_cache=use_cache)
         ####################################################
@@ -250,7 +250,7 @@ class GPTModel(nn.Module):
         return logits
 
     ####################################################
-    #  KV cache-related
+    #  KV cache 相关
     def reset_kv_cache(self):
         for blk in self.trf_blocks:
             blk.att.reset_cache()
@@ -265,16 +265,16 @@ def generate_text_simple_cached(model, idx, max_new_tokens,
 
     with torch.no_grad():
         if use_cache:
-            # Init cache with full prompt
+            # 用完整提示词初始化 cache
             model.reset_kv_cache()
             logits = model(idx[:, -ctx_len:], use_cache=True)
 
             for _ in range(max_new_tokens):
-                # a) pick the token with the highest log-probability (greedy sampling)
+                # a) 选择 log 概率最高的 token（贪心采样）
                 next_idx = logits[:, -1].argmax(dim=-1, keepdim=True)
-                # b) append it to the running sequence
+                # b) 追加到当前生成序列
                 idx = torch.cat([idx, next_idx], dim=1)
-                # c) feed model only the new token
+                # c) 只把新 token 输入模型
                 logits = model(next_idx, use_cache=True)
         else:
             for _ in range(max_new_tokens):
@@ -301,20 +301,20 @@ def main():
     encoded = tokenizer.encode(start_context)
 
     GPT_CONFIG_124M = {
-        "vocab_size": 50257,        # Vocabulary size
+        "vocab_size": 50257,        # 词表大小
         "context_length": args.max_new_tokens + len(encoded),
-        "emb_dim": args.emb_dim,    # Embedding dimension
-        "n_heads": args.n_heads,    # Number of attention heads
-        "n_layers": args.n_layers,  # Number of layers
-        "drop_rate": 0.0,           # Dropout rate
-        "qkv_bias": False,          # Query-Key-Value bias
+        "emb_dim": args.emb_dim,    # 嵌入维度
+        "n_heads": args.n_heads,    # 注意力 head 数量
+        "n_layers": args.n_layers,  # 层数
+        "drop_rate": 0.0,           # Dropout 比率
+        "qkv_bias": False,          # Query-Key-Value 偏置
         "latent_dim": args.latent_dim,
     }
     torch.manual_seed(123)
     model = GPTModel(GPT_CONFIG_124M)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device, dtype=torch.bfloat16)
-    model.eval()  # disable dropout
+    model.eval()  # 禁用 dropout
 
     encoded_tensor = torch.tensor(encoded, device=device).unsqueeze(0)
     print(f"\n{50*'='}\n{22*' '}IN\n{50*'='}")

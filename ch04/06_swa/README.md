@@ -1,44 +1,44 @@
-# Sliding Window Attention (SWA)
+# Sliding Window Attention（SWA）
 
-This bonus material illustrates the memory savings when using Sliding Window Attention (SWA) over regular Multi-Head Attention (MHA).
+这份补充材料展示了使用 Sliding Window Attention（SWA）替代常规 Multi-Head Attention（MHA）时可以节省多少内存。
 
 
 
 &nbsp;
-## Introduction
+## 引言
 
-What is sliding window attention (SWA)? If we think of regular self-attention as a *global* attention mechanism, since each sequence element can access every other sequence element, then we can think of SWA as *local* attention, because here we restrict the context size around the current query position. This is illustrated in the figure below.
+什么是滑动窗口注意力（SWA）？如果把常规自注意力看作一种*全局*注意力机制，因为每个序列元素都可以访问其他所有序列元素，那么 SWA 可以看作*局部*注意力，因为它限制了当前 query 位置周围的上下文大小。如下图所示。
 
 <img src="https://sebastianraschka.com/images/LLMs-from-scratch-images/bonus/swa-memory/1.webp?2" alt="Sliding Window Attention" width="500px" />
 
-As shown in the figure above, instead of attending to all previous tokens, each token only attends to a fixed-size local window around its position. This localized attention lowers the size of the KV cache substantially.
+如上图所示，每个 token 不再关注所有先前 token，而是只关注其位置附近一个固定大小的局部窗口。这种局部化注意力会显著降低 KV cache 的大小。
 
-In the remainder of this introduction, we will discuss SWA in the context of [Gemma 3](https://arxiv.org/abs/2503.19786), which is implemented from scratch in [../../ch05/12_gemma3](../../ch05/12_gemma3).
+在本引言剩余部分，我们会结合 [Gemma 3](https://arxiv.org/abs/2503.19786) 讨论 SWA；Gemma 3 的从零实现位于 [../../ch05/12_gemma3](../../ch05/12_gemma3)。
 
-Sliding window attention was originally introduced in the [LongFormer paper in 2020](https://arxiv.org/abs/2004.05150), but the reason we focus on Google's Gemma models is that they are very good open-weight models showing that sliding window attention is indeed a feasible approach in recent, capable models.
+滑动窗口注意力最初在 2020 年的 [LongFormer 论文](https://arxiv.org/abs/2004.05150)中提出，但这里关注 Google 的 Gemma 模型，是因为它们是非常优秀的开放权重模型，证明了滑动窗口注意力在近期能力较强的模型中确实可行。
 
-[Gemma 2](https://arxiv.org/abs/2408.00118) used a hybrid approach that combined local (sliding window) and global attention layers in a 1:1 ratio. Each token could attend to a context window of 4 k tokens. The reason for this 1:1 hybrid is that it strikes a balance between efficiency and global context modeling, since an LLM using only local attention can be too restrictive.
+[Gemma 2](https://arxiv.org/abs/2408.00118) 使用了局部（滑动窗口）和全局注意力层 1:1 组合的混合方案。每个 token 可以关注 4k token 的上下文窗口。采用这种 1:1 混合的原因是，它在效率和全局上下文建模之间取得了平衡；如果 LLM 只使用局部注意力，限制可能过强。
 
-[Gemma 3](https://arxiv.org/abs/2503.19786) then took the design further toward efficiency. It used a 5:1 ratio between sliding window and full attention layers, which means that for every five local attention layers, there is one global layer. In addition, the sliding window size was reduced from 4096 tokens in Gemma 2 to 1024 tokens in Gemma 3. 
+[Gemma 3](https://arxiv.org/abs/2503.19786) 进一步朝效率方向推进。它在滑动窗口层和全注意力层之间采用 5:1 比例，也就是说每五个局部注意力层之后有一个全局层。此外，滑动窗口大小也从 Gemma 2 的 4096 个 token 降低到 Gemma 3 的 1024 个 token。
 
-Interestingly, the ablation studies in the Gemma 3 technical report indicate that these changes have only a minor effect on overall model quality. In other words, the substantial memory and compute savings achieved through sliding window attention come with minimal loss in modeling performance.
+有意思的是，Gemma 3 技术报告中的消融研究表明，这些变化对整体模型质量影响很小。换句话说，通过滑动窗口注意力获得的大量内存和计算节省，只带来了很小的建模性能损失。
 
 
 
 &nbsp;
-## Sliding Window Attention (SWA) Memory Savings
+## Sliding Window Attention（SWA）的内存节省
 
-The memory savings are mostly reflected in the KV storage. We can compute the KV storage size with the following formula:
+内存节省主要体现在 KV 存储上。KV 存储大小可以用下面的公式计算：
 
 bytes ≈ batch_size × seqlen × (embed_dim / n_heads) × n_layers × 2 (K,V) × bytes_per_elem × n_kv_heads
 
-When using SWA, we replace the sequence length (seqlen) above by the window size W. So, when using sliding window attention, we reduce the KV cache size by a factor of "W / seqlen". (Note that for simplicity, this assumes that sliding window attention is used in every layer.)
+使用 SWA 时，我们把上式中的序列长度（seqlen）替换为窗口大小 W。因此，使用滑动窗口注意力时，KV cache 大小会按 "W / seqlen" 的比例下降。（为简单起见，这里假设每一层都使用滑动窗口注意力。）
 
 
-You can use the [memory_estimator_swa.py](memory_estimator_swa.py) script in this folder to apply this for different model configs to see how much memory you can save by using SWA over MHA:
+你可以使用本文件夹中的 [memory_estimator_swa.py](memory_estimator_swa.py) 脚本，把它应用到不同模型配置上，查看使用 SWA 替代 MHA 能节省多少内存：
 
 ```bash
-➜ uv run memory_estimator_swa.py \
+uv run memory_estimator_swa.py \
   --emb_dim 4096 --n_heads 32 --n_layers 32 \
   --context_length 32768 --n_kv_groups 4 \
   --batch_size 1 --dtype bf16 \
@@ -65,9 +65,9 @@ MHA + SWA (Ratio: 5:1) : 3.14 GB
 GQA + SWA (Ratio: 5:1) : 0.78 GB
 ```
 
-Note that Gemma 3 uses SWA in combination with GQA.
+注意，Gemma 3 会把 SWA 和 GQA 结合使用。
 
-The savings when using SWA over MHA are further shown in the plot below for different context lengths:
+下图进一步展示了不同上下文长度下，SWA 相对 MHA 带来的节省：
 
 &nbsp;
 
@@ -75,7 +75,7 @@ The savings when using SWA over MHA are further shown in the plot below for diff
 
 &nbsp;
 
-You can reproduce thi plots via:
+可以通过下面的命令复现这些图：
 
 ```bash
 uv run plot_memory_estimates_swa.py \
@@ -86,15 +86,15 @@ uv run plot_memory_estimates_swa.py \
 
 
 &nbsp;
-## SWA Code Examples
+## SWA 代码示例
 
-The [gpt_with_kv_mha.py](gpt_with_kv_mha.py) and [gpt_with_kv_swa.py](gpt_with_kv_swa.py) scripts in this folder provide hands-on examples for comparing the MHA and SWA memory usage in the context of a GPT model implementation.
+本文件夹中的 [gpt_with_kv_mha.py](gpt_with_kv_mha.py) 和 [gpt_with_kv_swa.py](gpt_with_kv_swa.py) 脚本提供了动手示例，用于在 GPT 模型实现中比较 MHA 和 SWA 的内存占用。
 
-Note that SWA can also be used in combination with MLA and GQA (as mentioned earlier), but for simplicity, this is not done here.
+注意，SWA 也可以和 MLA、GQA 结合使用（如前面提到的），但为了简单起见，这里没有这样做。
 
-Note that the model is not trained and thus generates nonsensical text. However, you can use it as a drop-in replacement for the standard GPT model in chapters 5-7 and train it.
+注意，该模型没有训练，因此会生成无意义文本。不过你可以把它作为第 5-7 章中标准 GPT 模型的直接替代版本并进行训练。
 
-Also, this implementation uses the KV cache explained in [another bonus section](../03_kv-cache), so the memory savings are more pronounced.
+此外，这个实现使用了[另一个补充章节](../03_kv-cache)中解释的 KV cache，因此内存节省会更明显。
 
 ```bash
 uv run gpt_with_kv_mha.py \
@@ -117,7 +117,7 @@ uv run gpt_with_kv_swa.py \
 --n_layers 12 \
 --emb_dim 768 \
 --sliding_window_size 1024 \
---sliding_window_stride 5   # like Gemma 3
+--sliding_window_stride 5   # 类似 Gemma 3
 
 ...
 
@@ -126,7 +126,7 @@ Time: 514.38 sec
 Max memory allocated: 0.63 GB
 ```
 
-The reason why we are not seeing such a big saving as in the plots above is 2-fold:
+这里没有看到上图中那么大的节省，原因有两点：
 
-1. I use a smaller configuration to have the model finish the generation in a reasonable time.
-2. More importantly, we are looking at the whole model here, not just the attention mechanism; the fully-connected layers in the model take up most of the memory (but this is a topic for a separate analysis).
+1. 我使用了较小配置，目的是让模型能在合理时间内完成生成。
+2. 更重要的是，这里观察的是整个模型，而不仅仅是注意力机制；模型中的全连接层占用了大部分内存（不过这是另一个单独分析主题）。

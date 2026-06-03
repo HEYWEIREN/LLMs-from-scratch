@@ -1,11 +1,11 @@
-# Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
-# Source for "Build a Large Language Model From Scratch"
+# 版权所有 (c) Sebastian Raschka，遵循 Apache License 2.0（见 LICENSE.txt）。
+# 《Build a Large Language Model From Scratch》的源代码
 #   - https://www.manning.com/books/build-a-large-language-model-from-scratch
-# Code: https://github.com/rasbt/LLMs-from-scratch
+# 代码：https://github.com/rasbt/LLMs-from-scratch
 
 import matplotlib.pyplot as plt
 
-# Bytes per element
+# 每个元素的字节数
 DTYPE_BYTES = {
     "fp32": 4,
     "bf16": 2,

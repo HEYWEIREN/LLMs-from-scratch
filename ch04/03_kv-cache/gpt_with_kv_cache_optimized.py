@@ -1,6 +1,6 @@
-# This file collects all the relevant code that we covered thus far
-# throughout Chapters 3-4.
-# This file can be run as a standalone script.
+# 本文件汇总目前为止讲过的相关代码
+# 覆盖第 3-4 章内容。
+# 本文件可以作为独立脚本运行。
 
 import time
 import tiktoken
@@ -9,7 +9,7 @@ import torch.nn as nn
 
 
 #####################################
-# Chapter 3
+# 第 3 章
 #####################################
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_in, d_out, context_length, dropout, num_heads, qkv_bias=False, max_seq_len=None, window_size=None):
@@ -18,16 +18,16 @@ class MultiHeadAttention(nn.Module):
 
         self.d_out = d_out
         self.num_heads = num_heads
-        self.head_dim = d_out // num_heads  # Reduce the projection dim to match desired output dim
+        self.head_dim = d_out // num_heads  # 缩小投影维度，使其匹配期望输出维度
 
         self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.W_key = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
-        self.out_proj = nn.Linear(d_out, d_out)  # Linear layer to combine head outputs
+        self.out_proj = nn.Linear(d_out, d_out)  # 用于合并各个 head 输出的线性层
         self.dropout = nn.Dropout(dropout)
 
         ####################################################
-        # NEW
+        # 新增
         self.max_seq_len = max_seq_len or context_length
         self.window_size = window_size or self.max_seq_len
         self.register_buffer("cache_k", None, persistent=False)
@@ -38,43 +38,43 @@ class MultiHeadAttention(nn.Module):
         b, num_tokens, d_in = x.shape
 
         if use_cache:
-            # to prevent self.ptr_cur became negative
+            # 防止 self.ptr_cur 变成负数
             assert num_tokens <= self.window_size, (
                 f"Input chunk size ({num_tokens}) exceeds KV cache window size ({self.window_size}). "
             )
 
-        keys_new = self.W_key(x)  # Shape: (b, num_tokens, d_out)
+        keys_new = self.W_key(x)  # 形状：(b, num_tokens, d_out)
         values_new = self.W_value(x)
         queries = self.W_query(x)
 
-        # We implicitly split the matrix by adding a `num_heads` dimension
-        # Unroll last dim: (b, num_tokens, d_out) -> (b, num_tokens, num_heads, head_dim)
+        # 通过添加 `num_heads` 维度隐式拆分矩阵
+        # 展开最后一维：(b, num_tokens, d_out) -> (b, num_tokens, num_heads, head_dim)
         keys_new = keys_new.view(b, num_tokens, self.num_heads, self.head_dim)
         values_new = values_new.view(b, num_tokens, self.num_heads, self.head_dim)
         queries = queries.view(b, num_tokens, self.num_heads, self.head_dim)
 
-        # Transpose: (b, num_tokens, num_heads, head_dim) -> (b, num_heads, num_tokens, head_dim)
+        # 转置：(b, num_tokens, num_heads, head_dim) -> (b, num_heads, num_tokens, head_dim)
         keys_new = keys_new.transpose(1, 2)
         values_new = values_new.transpose(1, 2)
         queries = queries.transpose(1, 2)
 
         ####################################################
-        # NEW
+        # 新增
         if use_cache:
             if self.cache_k is None or self.cache_k.size(0) != b:
                 self.cache_k = torch.zeros(b, self.num_heads,
                                            self.window_size, self.head_dim,
                                            device=x.device)
                 self.cache_v = torch.zeros_like(self.cache_k)
-                self.ptr_cur = 0  # pointer to next free slot
+                self.ptr_cur = 0  # 指向下一个空闲位置的指针
 
-            # if incoming chunk would overflow discard oldest tokens
+            # 如果新块会导致溢出，则丢弃最旧的 token
             if self.ptr_cur + num_tokens > self.window_size:
                 overflow = self.ptr_cur + num_tokens - self.window_size
-                # shift everything left by `overflow` (cheap view-copy)
+                # 将所有内容向左移动 `overflow` 位（开销较低的 view-copy）
                 self.cache_k[:, :, :-overflow, :] = self.cache_k[:, :, overflow:, :].clone()
                 self.cache_v[:, :, :-overflow, :] = self.cache_v[:, :, overflow:, :].clone()
-                self.ptr_cur -= overflow  # pointer after shift
+                self.ptr_cur -= overflow  # 移动后的指针
 
             self.cache_k[:, :, self.ptr_cur:self.ptr_cur + num_tokens, :] = keys_new
             self.cache_v[:, :, self.ptr_cur:self.ptr_cur + num_tokens, :] = values_new
@@ -84,50 +84,50 @@ class MultiHeadAttention(nn.Module):
             values = self.cache_v[:, :, :self.ptr_cur, :]
         else:
             keys, values = keys_new, values_new
-            self.ptr_cur = 0  # keep pointer sane if you interleave modes
+            self.ptr_cur = 0  # 如果交替使用不同模式，保持指针状态合理
         ####################################################
-        # Compute scaled dot-product attention (aka self-attention) with a causal mask
-        attn_scores = queries @ keys.transpose(2, 3)  # Dot product for each head
+        # 使用因果 mask 计算 scaled dot-product attention（也就是 self-attention）
+        attn_scores = queries @ keys.transpose(2, 3)  # 对每个 head 计算点积
 
         ####################################################
-        # NEW
+        # 新增
         K = attn_scores.size(-1)
 
         if num_tokens == K:
-            # No cache → use the pre‑baked triangular mask slice
+            # 没有 cache → 使用预先构造好的三角 mask 切片
             causal_mask = torch.triu(torch.ones(num_tokens, K, device=x.device, dtype=torch.bool), diagonal=1)
         else:
-            # Cached: need to offset the diagonal by (K − num_tokens)
-            offset = K - num_tokens  # number of tokens already in cache before this chunk
+            # 使用 cache 时：需要按 (K − num_tokens) 偏移对角线
+            offset = K - num_tokens  # 当前块之前已经在 cache 中的 token 数
             row_idx = torch.arange(num_tokens, device=x.device).unsqueeze(1)  # (num_tokens, 1)
             col_idx = torch.arange(K, device=x.device).unsqueeze(0)           # (1, K)
-            causal_mask = row_idx + offset < col_idx                          # True where j > i+offset
+            causal_mask = row_idx + offset < col_idx                          # 当 j > i+offset 时为 True
         ####################################################
 
-        # Use the mask to fill attention scores
+        # 使用 mask 填充注意力分数
         attn_scores.masked_fill_(causal_mask.unsqueeze(0).unsqueeze(0), -torch.inf)
 
         attn_weights = torch.softmax(attn_scores / keys.shape[-1]**0.5, dim=-1)
         attn_weights = self.dropout(attn_weights)
 
-        # Shape: (b, num_tokens, num_heads, head_dim)
+        # 形状：(b, num_tokens, num_heads, head_dim)
         context_vec = (attn_weights @ values).transpose(1, 2)
 
-        # Combine heads, where self.d_out = self.num_heads * self.head_dim
+        # 合并各个 head，其中 self.d_out = self.num_heads * self.head_dim
         context_vec = context_vec.contiguous().view(b, num_tokens, self.d_out)
-        context_vec = self.out_proj(context_vec)  # optional projection
+        context_vec = self.out_proj(context_vec)  # 可选投影
 
         return context_vec
 
     ####################################################
-    # NEW
+    # 新增
     def reset_cache(self):
         self.cache_k, self.cache_v = None, None
     ####################################################
 
 
 #####################################
-# Chapter 4
+# 第 4 章
 #####################################
 class LayerNorm(nn.Module):
     def __init__(self, emb_dim):
@@ -177,7 +177,7 @@ class TransformerBlock(nn.Module):
             num_heads=cfg["n_heads"],
             dropout=cfg["drop_rate"],
             qkv_bias=cfg["qkv_bias"],
-            window_size=cfg["kv_window_size"] if "kv_window_size" in cfg else cfg["context_length"]   # NEW
+            window_size=cfg["kv_window_size"] if "kv_window_size" in cfg else cfg["context_length"]   # 新增
         )
         self.ff = FeedForward(cfg)
         self.norm1 = LayerNorm(cfg["emb_dim"])
@@ -185,25 +185,25 @@ class TransformerBlock(nn.Module):
         self.drop_shortcut = nn.Dropout(cfg["drop_rate"])
 
     def forward(self, x, use_cache=False):
-        # Shortcut connection for attention block
+        # attention block 的快捷连接
         shortcut = x
         x = self.norm1(x)
 
-        # x = self.att(x)   # Shape [batch_size, num_tokens, emb_size]
+        # x = self.att(x)   # 形状 [batch_size, num_tokens, emb_size]
         ####################################################
-        # NEW
+        # 新增
         x = self.att(x, use_cache=use_cache)
         ####################################################
 
         x = self.drop_shortcut(x)
-        x = x + shortcut  # Add the original input back
+        x = x + shortcut  # 把原始输入加回来
 
-        # Shortcut connection for feed-forward block
+        # feed-forward block 的快捷连接
         shortcut = x
         x = self.norm2(x)
         x = self.ff(x)
         x = self.drop_shortcut(x)
-        x = x + shortcut  # Add the original input back
+        x = x + shortcut  # 把原始输入加回来
 
         return x
 
@@ -218,7 +218,7 @@ class GPTModel(nn.Module):
         # self.trf_blocks = nn.Sequential(
         #    *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])])
         ####################################################
-        # NEW
+        # 新增
         self.trf_blocks = nn.ModuleList(
             [TransformerBlock(cfg) for _ in range(cfg["n_layers"])])
 
@@ -236,12 +236,12 @@ class GPTModel(nn.Module):
         # pos_embeds = self.pos_emb(torch.arange(seq_len, device=in_idx.device))
 
         ####################################################
-        # NEW
+        # 新增
 
         if use_cache:
             context_length = self.pos_emb.num_embeddings
-            # to prevent generate more sequence than context_length
-            # since longer than context_length will cause model out of bound error when reading the position embedding
+            # 防止生成超过 context_length 的序列
+            # 因为长度超过 context_length 后，读取位置嵌入时会导致越界错误
             assert self.ptr_current_pos + seq_len <= context_length, (
                 f"Position embedding overflow. Want to read {self.ptr_current_pos + seq_len} which excceded size of {context_length}"
             )
@@ -252,12 +252,12 @@ class GPTModel(nn.Module):
         pos_embeds = self.pos_emb(pos_ids).unsqueeze(0)
         ####################################################
 
-        x = tok_embeds + pos_embeds  # Shape [batch_size, num_tokens, emb_size]
+        x = tok_embeds + pos_embeds  # 形状 [batch_size, num_tokens, emb_size]
         x = self.drop_emb(x)
 
         # x = self.trf_blocks(x)
         ####################################################
-        # NEW
+        # 新增
         for blk in self.trf_blocks:
             x = blk(x, use_cache=use_cache)
         ####################################################
@@ -267,7 +267,7 @@ class GPTModel(nn.Module):
         return logits
 
     ####################################################
-    # NEW
+    # 新增
     def reset_kv_cache(self):
         for blk in self.trf_blocks:
             blk.att.reset_cache()
@@ -276,33 +276,33 @@ class GPTModel(nn.Module):
 
 
 def generate_text_simple(model, idx, max_new_tokens, context_size):
-    # idx is (B, T) array of indices in the current context
+    # idx 是当前上下文中形状为 (B, T) 的索引数组
     for _ in range(max_new_tokens):
 
-        # Crop current context if it exceeds the supported context size
-        # E.g., if LLM supports only 5 tokens, and the context size is 10
-        # then only the last 5 tokens are used as context
+        # 如果当前上下文超过支持的上下文大小，则进行裁剪
+        # 例如，如果 LLM 只支持 5 个 token，而上下文大小是 10
+        # 那么只会使用最后 5 个 token 作为上下文
         idx_cond = idx[:, -context_size:]
 
-        # Get the predictions
+        # 获取预测结果
         with torch.no_grad():
             logits = model(idx_cond)
 
-        # Focus only on the last time step
-        # (batch, n_token, vocab_size) becomes (batch, vocab_size)
+        # 只关注最后一个时间步
+        # (batch, n_token, vocab_size) 变为 (batch, vocab_size)
         logits = logits[:, -1, :]
 
-        # Get the idx of the vocab entry with the highest logits value
+        # 获取 logits 值最高的词表条目的索引
         idx_next = torch.argmax(logits, dim=-1, keepdim=True)  # (batch, 1)
 
-        # Append sampled index to the running sequence
+        # 将采样得到的索引追加到当前序列
         idx = torch.cat((idx, idx_next), dim=1)  # (batch, n_tokens+1)
 
     return idx
 
 
 ####################################################
-# NEW
+# 新增
 def generate_text_simple_cached(model, idx, max_new_tokens, context_size=None, use_cache=True):
     model.eval()
 
@@ -316,13 +316,13 @@ def generate_text_simple_cached(model, idx, max_new_tokens, context_size=None, u
             input_tokens = idx[:, -ctx_len:]
             input_tokens_length = input_tokens.size(1)
 
-            # prefill to handle input_tokens_length > kv_window_size
+            # 通过预填充处理 input_tokens_length > kv_window_size 的情况
             for i in range(0, input_tokens_length, kv_window_size):
                 chunk = input_tokens[:, i:i+kv_window_size]
                 logits = model(chunk, use_cache=True)
 
-            # can't generate more than ctx_len of result
-            # due to the limitation of position embedding
+            # 不能生成超过 ctx_len 长度的结果
+            # 这是因为位置嵌入的限制
             max_generable = ctx_len - input_tokens_length
             max_new_tokens = min(max_new_tokens, max_generable)
 
@@ -342,21 +342,21 @@ def generate_text_simple_cached(model, idx, max_new_tokens, context_size=None, u
 
 def main():
     GPT_CONFIG_124M = {
-        "vocab_size": 50257,     # Vocabulary size
-        "context_length": 1024,  # Context length
-        "emb_dim": 768,          # Embedding dimension
-        "n_heads": 12,           # Number of attention heads
-        "n_layers": 12,          # Number of layers
-        "drop_rate": 0.1,        # Dropout rate
-        "qkv_bias": False,       # Query-Key-Value bias
-        "kv_window_size": 1024   # NEW: KV cache window size
+        "vocab_size": 50257,     # 词表大小
+        "context_length": 1024,  # 上下文长度
+        "emb_dim": 768,          # 嵌入维度
+        "n_heads": 12,           # 注意力 head 数量
+        "n_layers": 12,          # 层数
+        "drop_rate": 0.1,        # Dropout 比率
+        "qkv_bias": False,       # Query-Key-Value 偏置
+        "kv_window_size": 1024   # 新增：KV cache 窗口大小
     }
 
     torch.manual_seed(123)
     model = GPTModel(GPT_CONFIG_124M)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-    model.eval()  # disable dropout
+    model.eval()  # 禁用 dropout
 
     start_context = "Hello, I am"
 
@@ -381,7 +381,7 @@ def main():
     # )
 
     ####################################################
-    # NEW
+    # 新增
     token_ids = generate_text_simple_cached(
         model=model,
         idx=encoded_tensor,

@@ -1,9 +1,9 @@
-# Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
-# Source for "Build a Large Language Model From Scratch"
+# 版权所有 (c) Sebastian Raschka，遵循 Apache License 2.0（见 LICENSE.txt）。
+# 《Build a Large Language Model From Scratch》的源代码
 #   - https://www.manning.com/books/build-a-large-language-model-from-scratch
-# Code: https://github.com/rasbt/LLMs-from-scratch
+# 代码：https://github.com/rasbt/LLMs-from-scratch
 
-# File for internal use (unit tests)
+# 内部使用文件（单元测试）
 
 from gpt import main
 
@@ -32,9 +32,9 @@ def test_main(capsys):
     main()
     captured = capsys.readouterr()
 
-    # Normalize line endings and strip trailing whitespace from each line
+    # 规范化换行符，并去除每行末尾空白
     normalized_expected = "\n".join(line.rstrip() for line in expected.splitlines())
     normalized_output = "\n".join(line.rstrip() for line in captured.out.splitlines())
 
-    # Compare normalized strings
+    # 比较规范化后的字符串
     assert normalized_output == normalized_expected

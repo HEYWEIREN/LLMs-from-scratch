@@ -1,4 +1,4 @@
-# Code to test the GPT model implementation against the KV cache variants
+# 用于测试 GPT 模型实现与 KV cache 变体的一致性
 
 import pytest
 import torch
@@ -21,7 +21,7 @@ GPT_CONFIG_124M = {
     "n_layers": 12,
     "drop_rate": 0.1,
     "qkv_bias": False,
-    "kv_window_size": 1024  # NEW: KV cache window size
+    "kv_window_size": 1024  # 新增：KV cache 窗口大小
 }
 
 
@@ -121,13 +121,13 @@ def test_context_overflow_bug():
     """
     GPT_CONFIG_SMALL = {
         "vocab_size": 50257,
-        "context_length": 10,  # Very small context
+        "context_length": 10,  # 非常小的上下文
         "emb_dim": 768,
         "n_heads": 12,
         "n_layers": 12,
         "drop_rate": 0.1,
         "qkv_bias": False,
-        "kv_window_size": 20  # Larger than context_length
+        "kv_window_size": 20  # 大于 context_length
     }
 
     torch.manual_seed(123)
@@ -135,7 +135,7 @@ def test_context_overflow_bug():
     model = GPTModelKV2(GPT_CONFIG_SMALL).to(device)
     model.eval()
 
-    # 5 input tokens
+    # 5 个输入 token
     input_tokens = torch.randint(0, 50257, (1, 5), device=device)
 
     generate_text_simple_cachedKV2(
@@ -164,17 +164,17 @@ def test_prefill_chunking_basic():
         "n_layers": 12,
         "drop_rate": 0.1,
         "qkv_bias": False,
-        "kv_window_size": 4  # Small window to force chunking
+        "kv_window_size": 4  # 使用小窗口强制分块
     }
 
     torch.manual_seed(123)
     model = GPTModelKV2(config).to(device)
     model.eval()
 
-    # 10 input tokens (> kv_window_size of 4)
+    # 10 个输入 token（大于 kv_window_size=4）
     input_tokens = torch.randint(0, 50257, (1, 10), device=device)
 
-    # Should successfully process all input in chunks
+    # 应能成功分块处理所有输入
     token_ids = generate_text_simple_cachedKV2(
         model=model,
         idx=input_tokens,
@@ -182,8 +182,8 @@ def test_prefill_chunking_basic():
         use_cache=True
     )
 
-    # Should have 10 input + 2 generated = 12 total
+    # 应有 10 个输入 + 2 个生成 token = 总计 12
     assert token_ids.shape[1] == 12, f"Expected 12 tokens, got {token_ids.shape[1]}"
 
-    # First 10 tokens should match input
+    # 前 10 个 token 应与输入匹配
     assert torch.equal(token_ids[:, :10], input_tokens), "Input tokens should be preserved"

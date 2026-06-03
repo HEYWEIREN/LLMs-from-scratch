@@ -1,9 +1,9 @@
-# Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
-# Source for "Build a Large Language Model From Scratch"
+# 版权所有 (c) Sebastian Raschka，遵循 Apache License 2.0（见 LICENSE.txt）。
+# 《Build a Large Language Model From Scratch》的源代码
 #   - https://www.manning.com/books/build-a-large-language-model-from-scratch
-# Code: https://github.com/rasbt/LLMs-from-scratch
+# 代码：https://github.com/rasbt/LLMs-from-scratch
 
-# KV-cache memory estimator for MHA, GQA, and cross-layer KV sharing.
+# 用于估算 MHA、GQA 和跨层 KV 共享的 KV-cache 内存。
 
 import argparse
 import math

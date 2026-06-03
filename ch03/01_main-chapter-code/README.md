@@ -1,10 +1,9 @@
-# Chapter 3: Coding Attention Mechanisms
+# 第 3 章：编写注意力机制
 
-### Main Chapter Code
+### 本章主代码
 
-- [ch03.ipynb](ch03.ipynb) contains all the code as it appears in the chapter
+- [ch03.ipynb](ch03.ipynb) 包含本章正文中出现的全部代码
 
-### Optional Code
+### 可选代码
 
-- [multihead-attention.ipynb](multihead-attention.ipynb) is a minimal notebook with the main data loading pipeline implemented in this chapter
-
+- [multihead-attention.ipynb](multihead-attention.ipynb) 是一个精简版 Notebook，包含本章实现的主要数据加载流程和多头注意力实现

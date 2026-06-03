@@ -1,4 +1,4 @@
-# Chapter 4: Implementing a GPT Model from Scratch To Generate Text
+# 第 4 章：从零实现用于生成文本的 GPT 模型
 
-- [flops-analysis.ipynb](flops-analysis.ipynb) analyses the floating point operations per second (FLOPS) of the GPT model(s) implemented in the main chapter. 
-- `requirements-extra.txt` includes additional Python libraries that need to be installed (via `pip install -r requirements-extra.txt`.
+- [flops-analysis.ipynb](flops-analysis.ipynb) 分析主章节中实现的 GPT 模型每秒浮点运算次数（FLOPS）。
+- `requirements-extra.txt` 包含需要额外安装的 Python 库（通过 `pip install -r requirements-extra.txt` 安装）。

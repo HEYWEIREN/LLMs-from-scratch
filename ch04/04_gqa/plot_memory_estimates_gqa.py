@@ -1,13 +1,13 @@
-# Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
-# Source for "Build a Large Language Model From Scratch"
+# 版权所有 (c) Sebastian Raschka，遵循 Apache License 2.0（见 LICENSE.txt）。
+# 《Build a Large Language Model From Scratch》的源代码
 #   - https://www.manning.com/books/build-a-large-language-model-from-scratch
-# Code: https://github.com/rasbt/LLMs-from-scratch
+# 代码：https://github.com/rasbt/LLMs-from-scratch
 
-# Plot KV-cache vs context length for different n_kv_groups
+# 绘制不同 n_kv_groups 下 KV-cache 随上下文长度变化的曲线
 
 import matplotlib.pyplot as plt
 
-# Import from ./memory_estimator.py
+# 从 ./memory_estimator.py 导入
 from memory_estimator_gqa import calc_kv_bytes_total, DTYPE_BYTES
 
 
@@ -28,7 +28,7 @@ def plot_abs_kv_vs_context_multi_groups():
     dtype = "bf16"
     bytes_per_elem = DTYPE_BYTES[dtype]
 
-    # x-axis (log scale)
+    # x 轴（对数刻度）
     context_lengths = [
         256, 512, 1024, 2048, 4096, 8192,
         16384, 32768, 65536, 131072
@@ -38,7 +38,7 @@ def plot_abs_kv_vs_context_multi_groups():
     for L in context_lengths:
         total_mha = calc_kv_bytes_total(
             batch_size, L, emb_dim, n_heads,
-            n_heads,  # MHA: n_kv_heads = n_heads
+            n_heads,  # MHA：n_kv_heads = n_heads
             n_layers, bytes_per_elem
         )
         mha_gb.append(float(bytes_convert(total_mha)))
@@ -46,7 +46,7 @@ def plot_abs_kv_vs_context_multi_groups():
     plt.figure()
     plt.plot(context_lengths, mha_gb, marker="o", label="MHA (KV total)")
 
-    # GQA curves for selected n_kv_groups
+    # 选定 n_kv_groups 的 GQA 曲线
     groups_list = [4, 8, 12, 24]
     for g in groups_list:
         n_kv_heads = n_heads // g
@@ -58,7 +58,7 @@ def plot_abs_kv_vs_context_multi_groups():
             )
             gqa_gb.append(float(bytes_convert(total_gqa)))
 
-        # Compression rate relative to MHA
+        # 相对于 MHA 的压缩率
         comp = (n_heads / n_kv_heads) if n_kv_heads > 0 else float("inf")
         plt.plot(context_lengths, gqa_gb, marker="o",
                  label=f"GQA (n_kv_groups={g}, {comp:,.1f}× compression)")

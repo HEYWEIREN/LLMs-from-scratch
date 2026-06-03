@@ -9,7 +9,7 @@ import tiktoken
 
 
 def import_definitions_from_notebook(fullname, names):
-    """Loads function definitions from a Jupyter notebook file into a module."""
+    """从 Jupyter Notebook 文件中加载函数定义，并放入一个模块。"""
     path = os.path.join(os.path.dirname(__file__), fullname + ".ipynb")
     path = os.path.normpath(path)
 
@@ -22,12 +22,12 @@ def import_definitions_from_notebook(fullname, names):
     mod = types.ModuleType(fullname)
     sys.modules[fullname] = mod
 
-    # Execute all code cells to capture dependencies
+    # 执行所有代码单元格以捕获依赖项
     for cell in nb.cells:
         if cell.cell_type == "code":
             exec(cell.source, mod.__dict__)
 
-    # Ensure required names are in module
+    # 确保模块中包含所需名称
     missing_names = [name for name in names if name not in mod.__dict__]
     if missing_names:
         raise ImportError(f"Missing definitions in notebook: {missing_names}")
@@ -44,7 +44,7 @@ def imported_module():
 
 @pytest.fixture(scope="module")
 def verdict_file(imported_module):
-    """Fixture to handle downloading The Verdict file."""
+    """用于处理 The Verdict 文件下载的 fixture。"""
     download_file_if_absent = getattr(imported_module, "download_file_if_absent", None)
 
     verdict_path = download_file_if_absent(
@@ -62,7 +62,7 @@ def verdict_file(imported_module):
 
 @pytest.fixture(scope="module")
 def gpt2_files(imported_module):
-    """Fixture to handle downloading GPT-2 files."""
+    """用于处理 GPT-2 文件下载的 fixture。"""
     download_file_if_absent = getattr(imported_module, "download_file_if_absent", None)
 
     search_directories = ["ch02/02_bonus_bytepair-encoder/gpt2_model/", "../02_bonus_bytepair-encoder/gpt2_model/", "."]
@@ -80,7 +80,7 @@ def test_tokenizer_training(imported_module, verdict_file):
     BPETokenizerSimple = getattr(imported_module, "BPETokenizerSimple", None)
     tokenizer = BPETokenizerSimple()
 
-    with open(verdict_file, "r", encoding="utf-8") as f:  # added ../01_main-chapter-code/
+    with open(verdict_file, "r", encoding="utf-8") as f:  # 添加了 ../01_main-chapter-code/
         text = f.read()
 
     tokenizer.train(text, vocab_size=1000, allowed_special={"<|endoftext|>"})
@@ -191,11 +191,11 @@ def test_no_eot_aliasing_and_disallowed_logic(imported_module, gpt2_files):
     tik = tiktoken.get_encoding("gpt2")
 
     text = "Hello<|endoftext|>\nworld"
-    # When not allowed, our encode should raise ValueError like tiktoken
+    # 不允许特殊 token 时，我们的 encode 应该像 tiktoken 一样抛出 ValueError
     with pytest.raises(ValueError):
         tok.encode(text)
 
-    # When allowed, both tokenizers should match
+    # 允许特殊 token 时，两个 tokenizer 的结果应该一致
     ids_ours = tok.encode(text, allowed_special={"<|endoftext|>"})
     ids_tik = tik.encode(text, allowed_special={"<|endoftext|>"})
     assert ids_ours == ids_tik, "Mismatch vs tiktoken with EOT allowed"
@@ -223,7 +223,7 @@ def test_newline_roundtrip_and_equivalence(imported_module, gpt2_files, text):
     ids_tik = tik.encode(text)
 
     assert ids_ours == ids_tik, f"Mismatch vs tiktoken for: {repr(text)}"
-    # Each "\n" should correspond to id 198
+    # 每个 "\n" 都应该对应 ID 198
     expected_lf_count = text.count("\n")
     assert ids_ours.count(198) == expected_lf_count
 

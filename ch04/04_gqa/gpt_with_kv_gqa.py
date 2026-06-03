@@ -1,11 +1,11 @@
-# Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
-# Source for "Build a Large Language Model From Scratch"
+# 版权所有 (c) Sebastian Raschka，遵循 Apache License 2.0（见 LICENSE.txt）。
+# 《Build a Large Language Model From Scratch》的源代码
 #   - https://www.manning.com/books/build-a-large-language-model-from-scratch
-# Code: https://github.com/rasbt/LLMs-from-scratch
+# 代码：https://github.com/rasbt/LLMs-from-scratch
 
-# This file collects all the relevant code that we covered thus far
-# throughout Chapters 3-4, adapted to use Grouped-Query Attention (GQA).
-# This file can be run as a standalone script.
+# 本文件汇总目前为止讲过的相关代码
+# 覆盖第 3-4 章内容，并改为使用 Grouped-Query Attention（GQA）。
+# 本文件可以作为独立脚本运行。
 
 import argparse
 import time
@@ -15,7 +15,7 @@ import torch.nn as nn
 
 
 #####################################
-# NEW: GQA instead of MHA
+# 新增：用 GQA 替代 MHA
 #####################################
 class GroupedQueryAttention(nn.Module):
     def __init__(
@@ -45,12 +45,12 @@ class GroupedQueryAttention(nn.Module):
     def forward(self, x, use_cache=False):
         b, num_tokens, _ = x.shape
 
-        # Apply projections
+        # 应用投影
         queries = self.W_query(x)  # (b, num_tokens, num_heads * head_dim)
         keys = self.W_key(x)       # (b, num_tokens, num_kv_groups * head_dim)
         values = self.W_value(x)   # (b, num_tokens, num_kv_groups * head_dim)
 
-        # Reshape
+        # 重塑形状
         queries = queries.view(b, num_tokens, self.num_heads, self.head_dim).transpose(1, 2)
         keys_new = keys.view(b, num_tokens, self.num_kv_groups, self.head_dim).transpose(1, 2)
         values_new = values.view(b, num_tokens, self.num_kv_groups, self.head_dim).transpose(1, 2)
@@ -68,23 +68,23 @@ class GroupedQueryAttention(nn.Module):
                 self.cache_k, self.cache_v = None, None
                 self.ptr_current_pos = 0
 
-        # Expand keys and values to match the number of heads
-        # Shape: (b, num_heads, num_tokens, head_dim)
-        keys = keys_base.repeat_interleave(self.group_size, dim=1)  # Shape: (b, num_heads, num_tokens, head_dim)
-        values = values_base.repeat_interleave(self.group_size, dim=1)  # Shape: (b, num_heads, num_tokens, head_dim)
-        # For example, before repeat_interleave along dim=1 (query groups):
+        # 扩展 key 和 value，使其匹配 head 数量
+        # 形状：(b, num_heads, num_tokens, head_dim)
+        keys = keys_base.repeat_interleave(self.group_size, dim=1)  # 形状：(b, num_heads, num_tokens, head_dim)
+        values = values_base.repeat_interleave(self.group_size, dim=1)  # 形状：(b, num_heads, num_tokens, head_dim)
+        # 例如，在 dim=1（query 组）上执行 repeat_interleave 之前：
         #   [K1, K2]
-        # After repeat_interleave (each query group is repeated group_size times):
+        # 执行 repeat_interleave 之后（每个 query 组重复 group_size 次）：
         #   [K1, K1, K2, K2]
-        # If we used regular repeat instead of repeat_interleave, we'd get:
+        # 如果使用普通 repeat 而不是 repeat_interleave，会得到：
         #   [K1, K2, K1, K2]
 
-        # Compute scaled dot-product attention (aka self-attention) with a causal mask
-        # Shape: (b, num_heads, num_tokens, num_tokens)
-        attn_scores = queries @ keys.transpose(2, 3)  # Dot product for each head
+        # 使用因果 mask 计算 scaled dot-product attention（也就是 self-attention）
+        # 形状：(b, num_heads, num_tokens, num_tokens)
+        attn_scores = queries @ keys.transpose(2, 3)  # 对每个 head 计算点积
 
         ####################################################
-        # causal mask
+        # 因果 mask
         num_tokens_Q = queries.shape[-2]
         num_tokens_K = keys.shape[-2]
         device = queries.device
@@ -102,19 +102,19 @@ class GroupedQueryAttention(nn.Module):
         k_positions = torch.arange(num_tokens_K, device=device, dtype=torch.long)
         mask = q_positions.unsqueeze(-1) < k_positions.unsqueeze(0)
 
-        # Use the mask to fill attention scores
+        # 使用 mask 填充注意力分数
         attn_scores = attn_scores.masked_fill(mask, -torch.inf)
 
         attn_weights = torch.softmax(attn_scores / keys.shape[-1]**0.5, dim=-1)
         assert keys.shape[-1] == self.head_dim
         attn_weights = self.dropout(attn_weights)
 
-        # Shape: (b, num_tokens, num_heads, head_dim)
+        # 形状：(b, num_tokens, num_heads, head_dim)
         context_vec = (attn_weights @ values).transpose(1, 2)
 
-        # Combine heads, where self.d_out = self.num_heads * self.head_dim
+        # 合并各个 head，其中 self.d_out = self.num_heads * self.head_dim
         context_vec = context_vec.contiguous().view(b, num_tokens, self.d_out)
-        context_vec = self.out_proj(context_vec)  # optional projection
+        context_vec = self.out_proj(context_vec)  # 可选投影
 
         return context_vec
 
@@ -124,7 +124,7 @@ class GroupedQueryAttention(nn.Module):
 
 
 #####################################
-# Chapter 4
+# 第 4 章
 #####################################
 class LayerNorm(nn.Module):
     def __init__(self, emb_dim):
@@ -180,25 +180,25 @@ class TransformerBlock(nn.Module):
         self.drop_shortcut = nn.Dropout(cfg["drop_rate"])
 
     def forward(self, x, use_cache=False):
-        # Shortcut connection for attention block
+        # attention block 的快捷连接
         shortcut = x
         x = self.norm1(x)
 
-        # x = self.att(x)   # Shape [batch_size, num_tokens, emb_size]
+        # x = self.att(x)   # 形状 [batch_size, num_tokens, emb_size]
         ####################################################
-        #  KV cache-related
+        #  KV cache 相关
         x = self.att(x, use_cache=use_cache)
         ####################################################
 
         x = self.drop_shortcut(x)
-        x = x + shortcut  # Add the original input back
+        x = x + shortcut  # 把原始输入加回来
 
-        # Shortcut connection for feed-forward block
+        # feed-forward block 的快捷连接
         shortcut = x
         x = self.norm2(x)
         x = self.ff(x)
         x = self.drop_shortcut(x)
-        x = x + shortcut  # Add the original input back
+        x = x + shortcut  # 把原始输入加回来
 
         return x
 
@@ -213,7 +213,7 @@ class GPTModel(nn.Module):
         # self.trf_blocks = nn.Sequential(
         #    *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])])
         ####################################################
-        #  KV cache-related
+        #  KV cache 相关
         self.trf_blocks = nn.ModuleList(
             [TransformerBlock(cfg) for _ in range(cfg["n_layers"])])
 
@@ -230,7 +230,7 @@ class GPTModel(nn.Module):
         # pos_embeds = self.pos_emb(torch.arange(seq_len, device=in_idx.device))
 
         ####################################################
-        #  KV cache-related
+        #  KV cache 相关
         if use_cache:
             pos_ids = torch.arange(self.current_pos, self.current_pos + seq_len, device=in_idx.device, dtype=torch.long)
             self.current_pos += seq_len
@@ -239,12 +239,12 @@ class GPTModel(nn.Module):
         pos_embeds = self.pos_emb(pos_ids).unsqueeze(0)
         ####################################################
 
-        x = tok_embeds + pos_embeds  # Shape [batch_size, num_tokens, emb_size]
+        x = tok_embeds + pos_embeds  # 形状 [batch_size, num_tokens, emb_size]
         x = self.drop_emb(x)
 
         # x = self.trf_blocks(x)
         ####################################################
-        # KV cache-related
+        # KV cache 相关
         for blk in self.trf_blocks:
             x = blk(x, use_cache=use_cache)
         ####################################################
@@ -254,7 +254,7 @@ class GPTModel(nn.Module):
         return logits
 
     ####################################################
-    # KV cache-related
+    # KV cache 相关
     def reset_kv_cache(self):
         for blk in self.trf_blocks:
             blk.att.reset_cache()
@@ -269,16 +269,16 @@ def generate_text_simple_cached(model, idx, max_new_tokens,
 
     with torch.no_grad():
         if use_cache:
-            # Init cache with full prompt
+            # 用完整提示词初始化 cache
             model.reset_kv_cache()
             logits = model(idx[:, -ctx_len:], use_cache=True)
 
             for _ in range(max_new_tokens):
-                # a) pick the token with the highest log-probability (greedy sampling)
+                # a) 选择 log 概率最高的 token（贪心采样）
                 next_idx = logits[:, -1].argmax(dim=-1, keepdim=True)
-                # b) append it to the running sequence
+                # b) 追加到当前生成序列
                 idx = torch.cat([idx, next_idx], dim=1)
-                # c) feed model only the new token
+                # c) 只把新 token 输入模型
                 logits = model(next_idx, use_cache=True)
         else:
             for _ in range(max_new_tokens):
@@ -304,20 +304,20 @@ def main():
     encoded = tokenizer.encode(start_context)
 
     GPT_CONFIG_124M = {
-        "vocab_size": 50257,        # Vocabulary size
+        "vocab_size": 50257,        # 词表大小
         "context_length": args.max_new_tokens + len(encoded),
-        "emb_dim": args.emb_dim,    # Embedding dimension
-        "n_heads": args.n_heads,    # Number of attention heads
-        "n_layers": args.n_layers,  # Number of layers
-        "drop_rate": 0.0,           # Dropout rate
-        "qkv_bias": False,          # Query-Key-Value bias
+        "emb_dim": args.emb_dim,    # 嵌入维度
+        "n_heads": args.n_heads,    # 注意力 head 数量
+        "n_layers": args.n_layers,  # 层数
+        "drop_rate": 0.0,           # Dropout 比率
+        "qkv_bias": False,          # Query-Key-Value 偏置
         "n_kv_groups": args.n_kv_groups
     }
     torch.manual_seed(123)
     model = GPTModel(GPT_CONFIG_124M)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device, dtype=torch.bfloat16)
-    model.eval()  # disable dropout
+    model.eval()  # 禁用 dropout
 
     encoded_tensor = torch.tensor(encoded, device=device).unsqueeze(0)
     print(f"\n{50*'='}\n{22*' '}IN\n{50*'='}")

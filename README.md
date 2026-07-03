@@ -94,9 +94,17 @@ git clone --depth 1 https://github.com/rasbt/LLMs-from-scratch.git
 具备这一基础后，你就能更好地探索 LLMs 的世界，
 并理解本书中介绍的概念和代码示例。
 
-如果你有一些深度神经网络（deep neural networks）经验，某些概念可能会更容易理解，因为 LLMs 构建在这些架构之上。
+如果你准备自学这个项目，建议先补齐下面几类前置知识：
 
-本书使用 PyTorch 从零实现代码，不依赖任何外部 LLM libraries。熟练掌握 PyTorch 并不是硬性先修要求，但熟悉 PyTorch basics 会很有帮助。如果你刚开始学习 PyTorch，Appendix A 提供了一个简洁的 PyTorch 入门。你也可以参考我的书 [PyTorch in One Hour: From Tensors to Training Neural Networks on Multiple GPUs](https://sebastianraschka.com/teaching/pytorch-1h/)，学习相关基础。
+- **Python basics**：熟悉函数、类、列表/字典、文件读写、虚拟环境和常见包管理方式。代码里会频繁使用 Python 数据处理和模块化组织。
+- **PyTorch basics**：理解 tensor、shape、broadcasting、autograd、`nn.Module`、`DataLoader`、训练循环、loss 和 optimizer。熟练掌握 PyTorch 不是硬性要求，但能读懂这些基础会明显降低学习难度。
+- **Deep learning basics**：了解神经网络、反向传播（backpropagation）、梯度下降（gradient descent）、embedding、normalization、overfitting 等基本概念。
+- **Transformer / attention basics**：最好先知道 token、embedding、self-attention、multi-head attention、position embedding、causal mask、cross entropy 等术语。即使只懂大概，也可以在第 2-5 章中边写边补。
+- **Notebook and Git basics**：会运行 Jupyter Notebook，理解当前工作目录、依赖安装、GPU/CPU 环境差异，并能用 Git 保存自己的学习改动。
+
+不需要一开始就掌握所有 LLM 细节。本项目的价值正是在于把 tokenizer、attention、GPT model、pretraining、finetuning、instruction finetuning 和 preference tuning 等内容拆成可运行的小步骤。建议的学习方式是：先按主章节从 Ch 2 读到 Ch 7，把代码跑通；遇到不懂的 tensor shape、loss 计算或 attention 细节，再回到对应章节反复单步理解。
+
+本书使用 PyTorch 从零实现代码，不依赖任何外部 LLM libraries。如果你刚开始学习 PyTorch，Appendix A 提供了一个简洁的 PyTorch 入门。你也可以参考 [PyTorch in One Hour: From Tensors to Training Neural Networks on Multiple GPUs](https://sebastianraschka.com/teaching/pytorch-1h/)，学习相关基础。
 
 
 

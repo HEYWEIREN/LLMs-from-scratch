@@ -1,14 +1,13 @@
-# Chapter 6: Finetuning for Classification
+# 第 6 章：分类微调（Finetuning for Classification）
 
-### Main Chapter Code
+### 主章节代码（Main Chapter Code）
 
-- [ch06.ipynb](ch06.ipynb) contains all the code as it appears in the chapter
-- [previous_chapters.py](previous_chapters.py)  is a Python module that contains the GPT model we coded and trained in previous chapters, alongside many utility functions, which we reuse in this chapter
-- [gpt_download.py](gpt_download.py) contains the utility functions for downloading the pretrained GPT model weights
-- [exercise-solutions.ipynb](exercise-solutions.ipynb) contains the exercise solutions for this chapter
+- [ch06.ipynb](ch06.ipynb) 包含本章中出现的所有代码。
+- [previous_chapters.py](previous_chapters.py) 是一个 Python module，包含我们在前几章编写并训练的 GPT model，以及本章会复用的许多 utility functions。
+- [gpt_download.py](gpt_download.py) 包含用于下载 pretrained GPT model weights 的 utility functions。
+- [exercise-solutions.ipynb](exercise-solutions.ipynb) 包含本章练习答案。
 
-### Optional Code
+### 可选代码（Optional Code）
 
-- [load-finetuned-model.ipynb](load-finetuned-model.ipynb) is a standalone Jupyter notebook to load the finetuned model we created in this chapter
-- [gpt_class_finetune.py](gpt_class_finetune.py) is a standalone Python script file with the code that we implemented in [ch06.ipynb](ch06.ipynb) to finetune the GPT model (you can think of it as a chapter summary)
-
+- [load-finetuned-model.ipynb](load-finetuned-model.ipynb) 是一个 standalone Jupyter notebook，用于加载本章创建的 finetuned model。
+- [gpt_class_finetune.py](gpt_class_finetune.py) 是一个 standalone Python script file，包含我们在 [ch06.ipynb](ch06.ipynb) 中实现的 GPT model 微调代码（可以把它看作章节总结）。

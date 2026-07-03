@@ -1,11 +1,11 @@
-# Additional Classification Finetuning Experiments
+# 额外的分类微调实验（Additional Classification Finetuning Experiments）
 
-The table below adds experiments to answer additional questions about various design choices. The first row uses the same settings as the main chapter and is used as a reference.
-For example,
+下表增加了一组实验，用来回答关于不同设计选择的额外问题。第一行使用与主章节相同的设置，作为参考基线。
+例如：
 
-- comparing rows 1 and 2 answers the question: "What is the performance difference when we train the last or first token?";
-- comparing rows 1 and 3 answers the question: "What is the performance difference when we train only the last layer instead of the last block?";
-- and so forth.
+- 比较第 1 行和第 2 行，可以回答：“训练最后一个 token 与第一个 token 的性能差异是什么？”
+- 比较第 1 行和第 3 行，可以回答：“只训练最后一层而不是最后一个 block，性能差异是什么？”
+- 依此类推。
 
 &nbsp;
 
@@ -33,9 +33,9 @@ For example,
 
 &nbsp;
 
-### Usage
+### 使用方式（Usage）
 
-You can use the following code to reproduce the experiments:
+可以使用下面的代码复现实验：
 
 - Row 1: `python additional_experiments.py`
 - Row 2: `python additional_experiments.py --trainable_token_pos first`
@@ -57,21 +57,21 @@ You can use the following code to reproduce the experiments:
 - Row 18: `python additional_experiments.py --ignore_index 50256`
 - Row 19: `python additional_experiments.py --average_embeddings`
 
-I've kept the LLM and dataset small on purpose, so you can run the training on a regular laptop like a MacBook Air M3 in about 15 minutes (for the default setting) in case you don't have access to a GPU.
+我有意保持 LLM 和 dataset 较小，所以即使没有 GPU，也可以在普通笔记本（如 MacBook Air M3）上约 15 分钟内完成默认设置的训练。
 
 &nbsp;
 
-### Interpretation
+### 结果解读（Interpretation）
 
-1. **Training the Last vs. First Output Token Position (Row 1 vs. 2)**: Training the last output token position results in substantially better performance compared to the first. This improvement is expected due to the causal self-attention mask.
-2. **Training the Last Transformer Block vs. Last Layer (Row 1 vs. 3)**: Training the entire last transformer block is also results in substantially better results than training only the last layer.
-3. **Training the Last vs. Last Two Last Transformer Blocks (Row 1 vs. 4)**: Training the two last transformer blocks instead of only the last block results in a noticeable 3.33% accuracy boost.
-4. **Training Last Transformer Block vs All Layers (Row 1 vs. 5)**: Training all layers shows a modest improvement of ~2% over just training the last transformer block, but it requires almost three times longer in terms of training duration. Also, it does not perform as well as training only the last two out of 12 transformer blocks.
-5. **Using Larger Pretrained Models (Row 1 vs 6, and Row 1 vs. 7 and 8)**: Employing a 3x larger pretrained model leads to worse results. However, using a 5x larger model improves performance compared to the initial model, as was anticipated. Similarly, the 12x larger model improves the predictive performance even further. (The medium model was perhaps not well pretrained or the particular finetuning configuration works not as well for this model.)
-6. **Using a Model with Random Weights vs. Pretrained Weights (Row 1 and 5 vs. 10)**: Utilizing a model with random weights yields results that are only slightly worse (by 3% and 1.3%) compared to using pretrained weights.
-7. **Using LoRA (Low-Rank Adaptation) vs Training All Layers (Row 11 vs. 5, and row 12 vs. 9)**: Keeping the model frozen and adding trainable LoRA layers (see [Appendix E](../../appendix-E/01_main-chapter-code/appendix-E.ipynb) for details) is a viable alternative to training all model parameters and even improves the performance by 1% point (row 11 vs. 5). As it can be seen by the ~1% lower gap between the training and validation accuracy when using LoRA, this is likely due to less overfitting. Moreover, using LoRA is also more memory-efficient because fewer parameters have to be updated. When training the larger model (row 12 vs. 9), we can also see that LoRA trains much faster (5.79 min instead of 8.12 min).
-8. **Padding Input to Full Context Length vs. Longest Training Example (Row 1 vs. 13)**: Padding the input to the full supported context length results is significantly worse.
-9. **Padding vs no padding (Row 1 vs. 14 & 15, and 16)**: The `--no_padding` option disables the padding in the dataset, which requires training the model with a batch size of 1 since the inputs have variable lengths. This results in a better test accuracy but takes longer to train. In row 15, we additionally enable gradient accumulation with 8 steps to achieve the same batch size as in the other experiments, which helps reduce overfitting and slightly boost the test set accuracy. In row 16, padding is applied, but the token position is selected based on the last non-padding token. Row 16 should be mathematically similar to row 15, which uses gradient accumulation. However, due to some challenges with gradient accumulation in cases of unequal token counts, there may be small discrepancies (this is discussed in [this](https://unsloth.ai/blog/gradient) blog post).
-10. **Disabling the causal attention mask (Row 1 vs. 17)**: Disables the causal attention mask used in the multi-head attention module. This means all tokens can attend all other tokens. The model accuracy is slightly improved compared to the GPT model with causal mask.
-11. **Ignoring the padding indices in the loss and backpropagation (Row 1 vs. 18)**: Setting `--ignore_index 50256` excludes the `<|endoftext|>` padding tokens in the `cross_entropy` loss function in PyTorch. In this case, it does not have any effect because we replaced the output layers so that the token IDs are either 0 or 1 for the binary classification example. However, this setting is useful when instruction finetuning models in chapter 7.
-12. **Averaging the embeddings over all tokens (Row 1 vs. 19)**: Setting `--average_embeddings` will average the embeddings over all tokens. If this option is not used (the default), only the output embeddings at the chosen token position (specified by `--trainable_token_pos`) are considered; for example, the embeddings of the last token. Enabling `--average_embeddings` will mean-pool the embeddings of all tokens into the position chosen by `--trainable_token_pos` (the last token by default). As we can see, this improves the performance from 95.00% to 96.33% with only a minimal increase in run time (0.28 min to 0.32 min) and might be worthwhile considering in practice.
+1. **训练最后一个与第一个 output token position（Row 1 vs. 2）**：训练最后一个 output token position 的表现明显优于训练第一个。这一改进符合预期，原因是 causal self-attention mask。
+2. **训练最后一个 Transformer block 与最后一层（Row 1 vs. 3）**：训练整个最后一个 transformer block 的效果也明显好于只训练最后一层。
+3. **训练最后一个与最后两个 Transformer blocks（Row 1 vs. 4）**：训练最后两个 transformer blocks 而不是只训练最后一个 block，会带来明显的 3.33% accuracy 提升。
+4. **训练最后一个 Transformer block 与所有 layers（Row 1 vs. 5）**：训练所有 layers 相比只训练最后一个 transformer block 有约 2% 的适度提升，但训练时长几乎增加到 3 倍。此外，它的表现不如只训练 12 个 transformer blocks 中最后两个。
+5. **使用更大的 pretrained models（Row 1 vs. 6，以及 Row 1 vs. 7 和 8）**：使用大 3 倍的 pretrained model 结果更差。不过，使用大 5 倍的模型会如预期那样改善性能；同样，大 12 倍的模型进一步改善预测性能。（medium model 可能预训练得不够好，或者这个特定 finetuning configuration 对该模型不太合适。）
+6. **使用 random weights 与 pretrained weights（Row 1 和 5 vs. 10）**：使用 random weights 的模型结果只比使用 pretrained weights 略差（分别差 3% 和 1.3%）。
+7. **使用 LoRA（Low-Rank Adaptation）与训练所有 layers（Row 11 vs. 5，以及 Row 12 vs. 9）**：保持模型冻结并添加 trainable LoRA layers（详见 [Appendix E](../../appendix-E/01_main-chapter-code/appendix-E.ipynb)）是训练所有模型参数的可行替代方案，甚至能提升 1 个百分点（row 11 vs. 5）。从使用 LoRA 时 training 与 validation accuracy 的差距约低 1% 可以看出，这可能是因为 overfitting 更少。此外，LoRA 也更 memory-efficient，因为需要更新的参数更少。在训练更大模型时（row 12 vs. 9），也可以看到 LoRA 训练更快（5.79 min 而不是 8.12 min）。
+8. **把输入 padding 到完整 context length 与 padding 到最长 training example（Row 1 vs. 13）**：把输入 padding 到模型支持的完整 context length 会显著变差。
+9. **Padding 与 no padding（Row 1 vs. 14、15 和 16）**：`--no_padding` 选项会禁用 dataset 中的 padding；由于 inputs 具有可变长度，这要求以 batch size 1 训练模型。这样 test accuracy 更好，但训练时间更长。第 15 行额外启用 8 步 gradient accumulation，以获得与其他实验相同的 batch size，这有助于减少 overfitting，并略微提升 test set accuracy。第 16 行仍然使用 padding，但 token position 根据最后一个 non-padding token 选择。第 16 行在数学上应与使用 gradient accumulation 的第 15 行类似；不过，在 token 数量不相等的情况下，gradient accumulation 会有一些挑战，因此可能存在小差异（[这篇](https://unsloth.ai/blog/gradient)博客文章讨论了这个问题）。
+10. **禁用 causal attention mask（Row 1 vs. 17）**：禁用 multi-head attention module 中使用的 causal attention mask。这意味着所有 tokens 都可以 attend 到所有其他 tokens。与带 causal mask 的 GPT model 相比，模型 accuracy 略有提升。
+11. **在 loss 和 backpropagation 中忽略 padding indices（Row 1 vs. 18）**：设置 `--ignore_index 50256` 会在 PyTorch 的 `cross_entropy` loss function 中排除 `<|endoftext|>` padding tokens。在这个例子中，它没有影响，因为我们替换了 output layers，使 token IDs 只可能是 0 或 1，用于 binary classification。不过，在第 7 章进行 instruction finetuning models 时，这个设置很有用。
+12. **对所有 tokens 的 embeddings 取平均（Row 1 vs. 19）**：设置 `--average_embeddings` 会对所有 tokens 的 embeddings 取平均。如果不使用该选项（默认），只考虑所选 token position（由 `--trainable_token_pos` 指定）上的 output embeddings，例如最后一个 token 的 embeddings。启用 `--average_embeddings` 后，会把所有 tokens 的 embeddings mean-pool 到 `--trainable_token_pos` 选择的位置（默认是最后一个 token）。可以看到，这把性能从 95.00% 提升到 96.33%，运行时间只从 0.28 min 最小幅度增加到 0.32 min，因此实践中值得考虑。

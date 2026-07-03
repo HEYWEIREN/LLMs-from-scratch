@@ -1,7 +1,7 @@
-# Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
-# Source for "Build a Large Language Model From Scratch"
+# 版权所有 (c) Sebastian Raschka，Apache License 2.0（参见LICENSE.txt）。
+# “从零构建大型语言模型”的来源
 #   - https://www.manning.com/books/build-a-large-language-model-from-scratch
-# Code: https://github.com/rasbt/LLMs-from-scratch
+# 代码：https://github.com/rasbt/LLMs-from-scratch
 
 import argparse
 import json
@@ -14,28 +14,28 @@ import tiktoken
 import torch
 from tqdm import tqdm
 
-# Import from local files
+# 从本地文件导入
 from previous_chapters import GPTModel
 
 
 def text_to_token_ids(text, tokenizer):
     encoded = tokenizer.encode(text)
-    encoded_tensor = torch.tensor(encoded).unsqueeze(0)  # add batch dimension
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)  # 添加批次维度
     return encoded_tensor
 
 
 def token_ids_to_text(token_ids, tokenizer):
-    flat = token_ids.squeeze(0)  # remove batch dimension
+    flat = token_ids.squeeze(0)  # 删除批次维度
     return tokenizer.decode(flat.tolist())
 
 
 def download_and_load_gpt2(model_size, models_dir):
-    # Validate model size
+    # 验证模型尺寸
     allowed_sizes = ("124M", "355M", "774M", "1558M")
     if model_size not in allowed_sizes:
         raise ValueError(f"Model size not in {allowed_sizes}")
 
-    # Define paths
+    # 定义路径
     model_dir = os.path.join(models_dir, model_size)
     base_url = "https://openaipublic.blob.core.windows.net/gpt-2/models"
     filenames = [
@@ -44,14 +44,14 @@ def download_and_load_gpt2(model_size, models_dir):
         "model.ckpt.meta", "vocab.bpe"
     ]
 
-    # Download files
+    # 下载文件
     os.makedirs(model_dir, exist_ok=True)
     for filename in filenames:
         file_url = os.path.join(base_url, model_size, filename)
         file_path = os.path.join(model_dir, filename)
         download_file(file_url, file_path)
 
-    # Load settings and params
+    # 加载设置和参数
     tf_ckpt_path = tf.train.latest_checkpoint(model_dir)
     settings = json.load(open(os.path.join(model_dir, "hparams.json")))
     params = load_gpt2_params_from_tf_ckpt(tf_ckpt_path, settings)
@@ -60,57 +60,57 @@ def download_and_load_gpt2(model_size, models_dir):
 
 
 def download_file(url, destination):
-    # Send a GET request to download the file
+    # 发送 GET 请求以下载文件
     response = requests.get(url, stream=True, timeout=60)
     response.raise_for_status()
 
-    # Get the total file size from headers, defaulting to 0 if not present
+    # 从 headers 中获取文件总大小，如果不存在则默认为 0
     file_size = int(response.headers.get("Content-Length", 0))
 
-    # Check if file exists and has the same size
+    # 检查文件是否存在且大小相同
     if os.path.exists(destination):
         file_size_local = os.path.getsize(destination)
         if file_size and file_size == file_size_local:
             print(f"File already exists and is up-to-date: {destination}")
             return
 
-    # Define the block size for reading the file
-    block_size = 1024  # 1 Kilobyte
+    # 定义读取文件的块大小
+    block_size = 1024  # 1 KB
 
-    # Initialize the progress bar with total file size
+    # 使用总文件大小初始化进度条
     progress_bar_description = os.path.basename(url)
     with tqdm(total=file_size, unit="iB", unit_scale=True, desc=progress_bar_description) as progress_bar:
-        # Open the destination file in binary write mode
+        # 以二进制写入方式打开目标文件
         with open(destination, "wb") as file:
             for chunk in response.iter_content(chunk_size=block_size):
                 if chunk:
                     file.write(chunk)
-                    progress_bar.update(len(chunk))  # Update progress bar
+                    progress_bar.update(len(chunk))  # 更新进度条
 
 
 def load_gpt2_params_from_tf_ckpt(ckpt_path, settings):
-    # Initialize parameters dictionary with empty blocks for each layer
+    # 为每一层初始化空参数字典
     params = {"blocks": [{} for _ in range(settings["n_layer"])]}
 
-    # Iterate over each variable in the checkpoint
+    # 迭代检查点中的每个变量
     for name, _ in tf.train.list_variables(ckpt_path):
-        # Load the variable and remove singleton dimensions
+        # 加载变量并移除大小为 1 的维度
         variable_array = np.squeeze(tf.train.load_variable(ckpt_path, name))
 
-        # Process the variable name to extract relevant parts
-        variable_name_parts = name.split("/")[1:]  # Skip the 'model/' prefix
+        # 处理变量名以提取相关部分
+        variable_name_parts = name.split("/")[1:]  # 跳过 `model/` 前缀
 
-        # Identify the target dictionary for the variable
+        # 识别变量的目标字典
         target_dict = params
         if variable_name_parts[0].startswith("h"):
             layer_number = int(variable_name_parts[0][1:])
             target_dict = params["blocks"][layer_number]
 
-        # Recursively access or create nested dictionaries
+        # 递归访问或创建嵌套字典
         for key in variable_name_parts[1:-1]:
             target_dict = target_dict.setdefault(key, {})
 
-        # Assign the variable array to the last key
+        # 将变量数组分配给最后一个键
         last_key = variable_name_parts[-1]
         target_dict[last_key] = variable_array
 
@@ -186,42 +186,42 @@ def load_weights_into_gpt(gpt, params):
 
 def generate(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=None, eos_id=None):
 
-    # For-loop is the same as before: Get logits, and only focus on last time step
+    # 与之前一样循环生成：计算 logits，并只保留最后一个时间步
     for _ in range(max_new_tokens):
         idx_cond = idx[:, -context_size:]
         with torch.no_grad():
             logits = model(idx_cond)
         logits = logits[:, -1, :]
 
-        # New: Filter logits with top_k sampling
+        # 新功能：使用 top_k 过滤 logits
         if top_k is not None:
-            # Keep only top_k values
+            # 只保留 top_k 个最大值
             top_logits, _ = torch.topk(logits, top_k)
             min_val = top_logits[:, -1]
             logits = torch.where(logits < min_val, torch.tensor(float("-inf")).to(logits.device), logits)
 
-        # New: Apply temperature scaling
+        # 新功能：应用温度缩放
         if temperature > 0.0:
             logits = logits / temperature
 
-            # New (not in book): numerical stability tip to get equivalent results on mps device
-            # subtract rowwise max before softmax
+            # 书外补充：提高 MPS 设备结果可复现性的数值稳定技巧
+            # 在 softmax 前减去每一行的最大值
             logits = logits - logits.max(dim=-1, keepdim=True).values
 
-            # Apply softmax to get probabilities
+            # 应用 softmax 得到概率分布
             probs = torch.softmax(logits, dim=-1)  # (batch_size, context_len)
 
-            # Sample from the distribution
+            # 按概率分布采样下一个 token
             idx_next = torch.multinomial(probs, num_samples=1)  # (batch_size, 1)
 
-        # Otherwise same as before: get idx of the vocab entry with the highest logits value
+        # 否则使用贪心解码，选择 logits 最大值对应的索引
         else:
             idx_next = torch.argmax(logits, dim=-1, keepdim=True)  # (batch_size, 1)
 
-        if idx_next == eos_id:  # Stop generating early if end-of-sequence token is encountered and eos_id is specified
+        if idx_next == eos_id:  # 如果遇到序列结束 token 且指定了 eos_id，则提前停止生成
             break
 
-        # Same as before: append sampled index to the running sequence
+        # 与之前相同：将采样索引附加到运行序列中
         idx = torch.cat((idx, idx_next), dim=1)  # (batch_size, num_tokens+1)
 
     return idx
@@ -279,10 +279,10 @@ if __name__ == "__main__":
 
 
     BASE_CONFIG = {
-        "vocab_size": 50257,     # Vocabulary size
-        "context_length": 1024,  # Context length
-        "drop_rate": 0.0,        # Dropout rate
-        "qkv_bias": True         # Query-key-value bias
+        "vocab_size": 50257,     # 词汇量
+        "context_length": 1024,  # 上下文长度
+        "drop_rate": 0.0,        # dropout 比率
+        "qkv_bias": True         # QKV 偏置
     }
 
     model_configs = {

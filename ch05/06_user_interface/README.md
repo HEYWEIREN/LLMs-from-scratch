@@ -1,48 +1,60 @@
-# Building a User Interface to Interact With the Pretrained LLM
+# 构建用户界面以与预训练的 LLM 交互（Building a User Interface to Interact With the Pretrained LLM）
 
 
 
-This bonus folder contains code for running a ChatGPT-like user interface to interact with the pretrained LLMs from chapter 5, as shown below.
+这个补充材料文件夹包含用于运行类似 ChatGPT 的用户界面的代码，以与第 5 章中预训练的 LLM 进行交互，如下所示。
 
 
 
-![Chainlit UI example](https://sebastianraschka.com/images/LLMs-from-scratch-images/bonus/chainlit/chainlit-orig.webp)
+![Chainlit UI 示例](https://sebastianraschka.com/images/LLMs-from-scratch-images/bonus/chainlit/chainlit-orig.webp)
 
 
 
-To implement this user interface, we use the open-source [Chainlit Python package](https://github.com/Chainlit/chainlit).
+为了实现这个用户界面，我们使用开源[Chainlit Python包](https://github.com/Chainlit/chainlit)。
 
-&nbsp;
-## Step 1: Install dependencies
+ 
+## 第 1 步：安装依赖项（Step 1: Install dependencies）
 
-First, we install the `chainlit` package via
+首先，我们通过安装 `chainlit` 包
+
+
 
 ```bash
 pip install chainlit
 ```
 
-(Alternatively, execute `pip install -r requirements-extra.txt`.)
 
-&nbsp;
-## Step 2: Run `app` code
 
-This folder contains 2 files:
+（或者，执行 `pip install -r requirements-extra.txt`。）
 
-1. [`app_orig.py`](app_orig.py): This file loads and uses the original GPT-2 weights from OpenAI. 
-2. [`app_own.py`](app_own.py): This file loads and uses the GPT-2 weights we generated in chapter 5. This requires that you execute the [`../01_main-chapter-code/ch05.ipynb`](../01_main-chapter-code/ch05.ipynb) file first.
+ 
+## 步骤 2：运行 `app` 代码（Step 2: Run `app` code）
 
-(Open and inspect these files to learn more.)
+该文件夹包含2个文件：
 
-Run one of the following commands from the terminal to start the UI server:
+1. [`app_orig.py`](app_orig.py)：此文件加载并使用 OpenAI 的原始 GPT-2 权重。
+2. [`app_own.py`](app_own.py)：该文件加载并使用我们在第 5 章中生成的 GPT-2 权重。这要求您首先执行 [`../01_main-chapter-code/ch05.ipynb`](../01_main-chapter-code/ch05.ipynb) 文件。
+
+（打开并检查这些文件以了解更多信息。）
+
+从终端运行以下命令之一来启动 UI 服务器：
+
+
 
 ```bash
 chainlit run app_orig.py
 ```
 
-or
+
+
+或
+
+
 
 ```bash
 chainlit run app_own.py
 ```
 
-Running one of the commands above should open a new browser tab where you can interact with the model. If the browser tab does not open automatically, inspect the terminal command and copy the local address into your browser address bar (usually, the address is `http://localhost:8000`).
+
+
+运行上述命令之一应该会打开一个新的浏览器选项卡，您可以在其中与模型进行交互。如果浏览器选项卡没有自动打开，请检查终端命令并将本地地址复制到浏览器地址栏中（通常该地址为 `http://localhost:8000`）。

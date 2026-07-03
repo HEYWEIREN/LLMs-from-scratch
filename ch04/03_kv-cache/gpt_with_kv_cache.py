@@ -28,6 +28,7 @@ class MultiHeadAttention(nn.Module):
         self.register_buffer(
             "mask",
             torch.triu(torch.ones(context_length, context_length), diagonal=1),
+            #persistent=False 表示在模型加载后，不会将 mask 保存到检查点中，避免占用额外内存
             persistent=False
         )
 
@@ -200,6 +201,8 @@ class GPTModel(nn.Module):
         #    *[TransformerBlock(cfg) for _ in range(cfg["n_layers"])])
         ####################################################
         # 新增
+        # nn.Sequential 默认只方便传一个 x，不方便额外传 use_cache=False/True。
+        # nn.ModuleList 允许我们在 forward 中手动迭代每个 TransformerBlock，并传入 use_cache 参数。
         self.trf_blocks = nn.ModuleList(
             [TransformerBlock(cfg) for _ in range(cfg["n_layers"])])
 
@@ -223,6 +226,7 @@ class GPTModel(nn.Module):
             self.current_pos += seq_len
         else:
             pos_ids = torch.arange(0, seq_len, device=in_idx.device, dtype=torch.long)
+            # unsqueeze(0) 是为了在位置维度上添加一个批次维度，使其与 tok_embeds 的形状兼容
         pos_embeds = self.pos_emb(pos_ids).unsqueeze(0)
         ####################################################
 
@@ -282,6 +286,7 @@ def generate_text_simple_cached(model, idx, max_new_tokens,
     model.eval()
     ctx_len = context_size or model.pos_emb.num_embeddings
 
+    #no_grad 是一个上下文管理器，禁用梯度计算，节省内存和计算资源
     with torch.no_grad():
         if use_cache:
             # 用完整提示词初始化 cache

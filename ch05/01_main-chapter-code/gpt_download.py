@@ -1,7 +1,7 @@
-# Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
-# Source for "Build a Large Language Model From Scratch"
+# 版权所有 (c) Sebastian Raschka，Apache License 2.0（参见LICENSE.txt）。
+# “从零构建大型语言模型”的来源
 #   - https://www.manning.com/books/build-a-large-language-model-from-scratch
-# Code: https://github.com/rasbt/LLMs-from-scratch
+# 代码：https://github.com/rasbt/LLMs-from-scratch
 
 
 import os
@@ -14,12 +14,12 @@ from tqdm import tqdm
 
 
 def download_and_load_gpt2(model_size, models_dir):
-    # Validate model size
+    # 验证模型尺寸
     allowed_sizes = ("124M", "355M", "774M", "1558M")
     if model_size not in allowed_sizes:
         raise ValueError(f"Model size not in {allowed_sizes}")
 
-    # Define paths
+    # 定义路径
     model_dir = os.path.join(models_dir, model_size)
     base_url = "https://openaipublic.blob.core.windows.net/gpt-2/models"
     backup_base_url = "https://f001.backblazeb2.com/file/LLMs-from-scratch/gpt2"
@@ -29,7 +29,7 @@ def download_and_load_gpt2(model_size, models_dir):
         "model.ckpt.meta", "vocab.bpe"
     ]
 
-    # Download files
+    # 下载文件
     os.makedirs(model_dir, exist_ok=True)
     for filename in filenames:
         file_url = os.path.join(base_url, model_size, filename)
@@ -37,7 +37,7 @@ def download_and_load_gpt2(model_size, models_dir):
         file_path = os.path.join(model_dir, filename)
         download_file(file_url, file_path, backup_url)
 
-    # Load settings and params
+    # 加载设置和参数
     tf_ckpt_path = tf.train.latest_checkpoint(model_dir)
     settings = json.load(open(os.path.join(model_dir, "hparams.json"), "r", encoding="utf-8"))
     params = load_gpt2_params_from_tf_ckpt(tf_ckpt_path, settings)
@@ -52,7 +52,7 @@ def download_file(url, destination, backup_url=None):
 
         file_size = int(response.headers.get("Content-Length", 0))
 
-        # Check if file exists and has same size
+        # 检查文件是否存在且大小相同
         if os.path.exists(destination):
             file_size_local = os.path.getsize(destination)
             if file_size and file_size == file_size_local:
@@ -92,7 +92,7 @@ def download_file(url, destination, backup_url=None):
         print(f"An unexpected error occurred: {e}")
 
 
-# Alternative way using `requests`
+# 使用 `requests` 的替代方法
 """
 def download_file(url, destination):
     # Send a GET request to download the file in streaming mode
@@ -124,28 +124,28 @@ def download_file(url, destination):
 
 
 def load_gpt2_params_from_tf_ckpt(ckpt_path, settings):
-    # Initialize parameters dictionary with empty blocks for each layer
+    # 为每一层初始化空参数字典
     params = {"blocks": [{} for _ in range(settings["n_layer"])]}
 
-    # Iterate over each variable in the checkpoint
+    # 迭代检查点中的每个变量
     for name, _ in tf.train.list_variables(ckpt_path):
-        # Load the variable and remove singleton dimensions
+        # 加载变量并移除大小为 1 的维度
         variable_array = np.squeeze(tf.train.load_variable(ckpt_path, name))
 
-        # Process the variable name to extract relevant parts
-        variable_name_parts = name.split("/")[1:]  # Skip the 'model/' prefix
+        # 处理变量名以提取相关部分
+        variable_name_parts = name.split("/")[1:]  # 跳过 `model/` 前缀
 
-        # Identify the target dictionary for the variable
+        # 识别变量的目标字典
         target_dict = params
         if variable_name_parts[0].startswith("h"):
             layer_number = int(variable_name_parts[0][1:])
             target_dict = params["blocks"][layer_number]
 
-        # Recursively access or create nested dictionaries
+        # 递归访问或创建嵌套字典
         for key in variable_name_parts[1:-1]:
             target_dict = target_dict.setdefault(key, {})
 
-        # Assign the variable array to the last key
+        # 将变量数组分配给最后一个键
         last_key = variable_name_parts[-1]
         target_dict[last_key] = variable_array
 

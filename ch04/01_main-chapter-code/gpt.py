@@ -64,14 +64,14 @@ class MultiHeadAttention(nn.Module):
         self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.W_key = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
-        self.out_proj = nn.Linear(d_out, d_out)  # 用于合并各个 head 输出的线性层
+        self.out_proj = nn.Linear(d_out, d_out)
         self.dropout = nn.Dropout(dropout)
         self.register_buffer("mask", torch.triu(torch.ones(context_length, context_length), diagonal=1))
 
     def forward(self, x):
         b, num_tokens, d_in = x.shape
 
-        keys = self.W_key(x)  # 形状：(b, num_tokens, d_out)
+        keys = self.W_key(x)
         queries = self.W_query(x)
         values = self.W_value(x)
 
@@ -102,6 +102,7 @@ class MultiHeadAttention(nn.Module):
         context_vec = (attn_weights @ values).transpose(1, 2)
 
         # 合并各个 head，其中 self.d_out = self.num_heads * self.head_dim
+        # contiguous() 是为了确保内存连续，view() 是为了调整形状
         context_vec = context_vec.contiguous().view(b, num_tokens, self.d_out)
         context_vec = self.out_proj(context_vec)  # 可选投影
 

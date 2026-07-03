@@ -43,6 +43,7 @@ class MultiHeadLatentAttention(nn.Module):
 
         ####################################################
         # Latent-KV cache
+        # persistent=False 表示在模型加载后，不会将 cache 保存到检查点中，避免占用额外内存
         self.register_buffer("cache_c_kv", None, persistent=False)
         self.ptr_current_pos = 0
         ####################################################
@@ -55,6 +56,7 @@ class MultiHeadLatentAttention(nn.Module):
     def _reshape_to_heads(x, num_heads, head_dim):
         # (b, T, d_out) -> (b, num_heads, T, head_dim)
         bsz, num_tokens, _ = x.shape
+        # contiguous() 确保内存是连续的，避免在计算时需要进行内存重排
         return x.view(bsz, num_tokens, num_heads, head_dim).transpose(1, 2).contiguous()
 
     def forward(self, x, use_cache=False):
@@ -85,7 +87,7 @@ class MultiHeadLatentAttention(nn.Module):
         keys = self._reshape_to_heads(keys_all, num_heads, head_dim)
         values = self._reshape_to_heads(values_all, num_heads, head_dim)
 
-        # 5) 使用因果 mask 的 scaled dot-product attention
+        # 5) 使用因果 mask 的 scaled dot-product attention --matmul
         attn_scores = torch.matmul(queries, keys.transpose(-2, -1))
 
         num_tokens_Q = queries.shape[-2]
@@ -103,6 +105,7 @@ class MultiHeadLatentAttention(nn.Module):
             q_positions = torch.arange(num_tokens_Q, device=device, dtype=torch.long)
             self.ptr_current_pos = 0
         k_positions = torch.arange(num_tokens_K, device=device, dtype=torch.long)
+        #
         mask_bool = q_positions.unsqueeze(-1) < k_positions.unsqueeze(0)
 
         # 使用 mask 填充注意力分数

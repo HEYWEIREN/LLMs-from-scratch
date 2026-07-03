@@ -25,8 +25,11 @@ class MultiHeadAttention(nn.Module):
         self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
         self.out_proj = nn.Linear(d_out, d_out)  # 用于合并各个 head 输出的线性层
         self.dropout = nn.Dropout(dropout)
+        #register_buffer 是将 mask 注册为模型的 buffer，
+        # 这样在保存和加载模型时，mask 也会被保存和加载,但不会被视为模型的可训练参数
         self.register_buffer(
             "mask",
+            #triu 返回上三角矩阵，矩阵的对角线以上为 1，其他为 0
             torch.triu(torch.ones(context_length, context_length), diagonal=1),
             persistent=False
         )
@@ -65,6 +68,8 @@ class MultiHeadAttention(nn.Module):
         context_vec = (attn_weights @ values).transpose(1, 2)
 
         # 合并各个 head，其中 self.d_out = self.num_heads * self.head_dim
+        # contiguous() 方法将张量在内存中变为连续的
+        # view() 方法将张量重新调整为指定的形状
         context_vec = context_vec.contiguous().view(b, num_tokens, self.d_out)
         context_vec = self.out_proj(context_vec)  # 可选投影
 
@@ -148,6 +153,7 @@ class TransformerBlock(nn.Module):
 class GPTModel(nn.Module):
     def __init__(self, cfg):
         super().__init__()
+        #nn.Embedding() 一张“词表编号 → 向量”的表
         self.tok_emb = nn.Embedding(cfg["vocab_size"], cfg["emb_dim"])
         self.pos_emb = nn.Embedding(cfg["context_length"], cfg["emb_dim"])
         self.drop_emb = nn.Dropout(cfg["drop_rate"])
@@ -170,6 +176,7 @@ class GPTModel(nn.Module):
         return logits
 
 
+#context_size 是模型支持的最大上下文长度，例如 1024,max_new_tokens 是要生成的新 token 数量，例如 200
 def generate_text_simple(model, idx, max_new_tokens, context_size):
     model.eval()
     # idx 是当前上下文中形状为 (B, T) 的索引数组
@@ -178,6 +185,7 @@ def generate_text_simple(model, idx, max_new_tokens, context_size):
         # 如果当前上下文超过支持的上下文大小，则进行裁剪
         # 例如，如果 LLM 只支持 5 个 token，而上下文大小是 10
         # 那么只会使用最后 5 个 token 作为上下文
+        #idx 是
         idx_cond = idx[:, -context_size:]
 
         # 获取预测结果
@@ -189,6 +197,7 @@ def generate_text_simple(model, idx, max_new_tokens, context_size):
         logits = logits[:, -1, :]
 
         # 获取 logits 值最高的词表条目的索引
+        # argmax 返回最大值的索引，dim=-1 表示在最后一个维度上进行操作，keepdim=True 保持维度不变
         idx_next = torch.argmax(logits, dim=-1, keepdim=True)  # (batch, 1)
 
         # 将采样得到的索引追加到当前序列
